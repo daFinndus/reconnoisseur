@@ -1,0 +1,5 @@
+# Ignore output directory
+output
+
+# Also ignore wordlists in workspace
+workspace
