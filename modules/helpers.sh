@@ -1,37 +1,47 @@
 #!/usr/bin/env bash
 
-# Here are helper functions for logging, etc.
+# This script provides shared logging helpers
 # -------------------------------------------
 
-# Setup colors for nice logging
+# Set up colors for readable log output
 RED="\033[0;31m"
 GREEN="\033[0;32m"
-YELLOW="\033[0;33m"
+YELLOW="\033[1;33m"
 BLUE="\033[0;34m"
 CYAN="\033[0;36m"
 RESET="\033[0m"
 
+# Return the current time for log message prefixes
 timestamp() {
   date "+%H:%M:%S"
 }
 
-# Logging functions
+# Print a primary step message and pause briefly for readability
 step() {
-  echo -e "\n${CYAN}[$(timestamp)] ${RESET} $1"
+  echo -e "\n${CYAN}[$(timestamp)] ${RESET}$1"
+  sleep 1s
 }
 
+# Print an informational log message
 info() {
-  echo -e "${BLUE}[$(timestamp)] ${RESET} $1"
+  echo -e "${BLUE}[$(timestamp)] ${RESET}$1"
+  sleep 0.5s
 }
 
+# Print a success log message
 success() {
-  echo -e "${GREEN}[$(timestamp)] ${RESET} $1"
+  echo -e "${GREEN}[$(timestamp)] ${RESET}$1"
+  sleep 0.5s
 }
 
+# Print a warning log message
 warn() {
-  echo -e "${YELLOW}[$(timestamp)] ${RESET} $1"
+  echo -e "${YELLOW}[$(timestamp)] ${RESET}$1"
+  sleep 0.5s
 }
 
+# Print an error log message and pause so it stays visible
 error() {
-  echo -e "${RED}[$(timestamp)] ${RESET} $1"
+  echo -e "${RED}[$(timestamp)] ${RESET}$1"
+  sleep 0.5s
 }
