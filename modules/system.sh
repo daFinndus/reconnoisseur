@@ -42,7 +42,7 @@ check_pkgs() {
             warn "Package $pkg is not installed. Installing..."
 
             # Ask before attempting to install a missing dependency
-            read -r -p "[$(timestamp)] Do you want to install $pkg? " answer
+            read -r -p "[$(timestamp)] Do you want to install $pkg? (y/n) " answer
 
             if [[ "$answer" != "y" ]]; then
                 error "Package $pkg is required. Exiting."
