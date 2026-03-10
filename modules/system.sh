@@ -52,7 +52,7 @@ check_pkgs() {
             # Install with the detected package manager
             case $MANAGER in
                 apt)
-                    apt update && apt install -y "$pkg" &> /dev/null
+                    apt update &> /dev/null && apt install -y "$pkg" &> /dev/null
                     ;;
                 yay)
                     echo "y" | yay -S "$pkg" &> /dev/null
