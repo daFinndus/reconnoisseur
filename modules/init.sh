@@ -6,19 +6,13 @@
 source modules/helpers.sh
 source modules/parser.sh
 
-# Exit unless the script runs with root privileges
-make_sure_root() {
-  if [ "$EUID" -ne 0 ]; then
-    error "Please run as root!"
-    info "Port scanning and enumeration requires elevated privileges."
-
-    sleep 3s
-    exit 1
-  fi
-}
-
 # Show a quick color preview for the current terminal
 check_colors() {
+  if [[ "$COLOR_CHECK" = "true" ]]; then
+    warn "Skipping color support check as requested, this will save some time but might lead to suboptimal output formatting."
+    return
+  fi
+
   step "Checking if the terminal displays colors correctly..."
 
   info "This should be blue."
@@ -33,38 +27,31 @@ WORKSPACE=""
 
 # Ensure the output and wordlist directories exist
 init_workspace() {
-  local project_name=""
+  local name=""
 
   step "Creating necessary directories..."
 
-  if [ -z "$OUTPUT" ]; then
-    OUTPUT="output"
-  fi
-
   # Create the shared output directory if needed
-  mkdir -p "$OUTPUT"
-
+  mkdir -p "output"
   success "Made sure that the output directory exists."
 
-  if [ -z "$WORDLISTS" ]; then
-    WORDLISTS="wordlists"
-  fi
-
   # Create the shared wordlist directory if needed
-  mkdir -p "$WORDLISTS"
+  mkdir -p "wordlists"
+  success "Also made sure that the wordlists directory exists."
 
-  read -rp "[$(timestamp)] Please give this project a name: " project_name
+  read -rp "[$(timestamp)] Please give this project a name: " name
 
-  info "Using $project_name as the project name and creating workspace directories..."
+  info "Using $name as the project name and creating workspace directories..."
 
-  WORKSPACE="$OUTPUT/$project_name"
+  WORKSPACE="output/$name"
 
   # Reuse an existing workspace or create a new one for this run
-  if [ -d "$WORKSPACE" ]; then
-    warn "A workspace with the name $project_name already exists, using it..."
+  if [[ -d "$WORKSPACE" ]]; then
+    warn "A workspace with the name $name already exists, using it..."
     sleep 1.5s
+
     warn "This will probably overwrite existing files, make sure nothing important is there!"
-    sleep 3s
+    sleep 1.5s
 
     read -rp "[$(timestamp)] Do you want to continue with this workspace? (y/n) " answer
 

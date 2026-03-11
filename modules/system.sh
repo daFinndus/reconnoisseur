@@ -18,9 +18,9 @@ check_pkg_manager() {
     apt_path=$(command -v apt)
     yay_path=$(command -v yay)
 
-    if [ -n "$apt_path" ]; then
+    if [[ -n "$apt_path" ]]; then
         MANAGER="apt"
-    elif [ -n "$yay_path" ]; then
+    elif [[ -n "$yay_path" ]]; then
         MANAGER="yay"
     else
         error "No supported package manager found."

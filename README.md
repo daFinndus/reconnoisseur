@@ -44,6 +44,12 @@ Run with a custom ping timeout and verbose logging:
 sudo ./reconnoisseur.sh -t example.com -pt 15 -v
 ```
 
+Run a full TCP sweep and skip service detection:
+
+```bash
+sudo ./reconnoisseur.sh -t 10.10.0.10 -fp -nss
+```
+
 Use custom output and wordlist directories:
 
 ```bash
@@ -54,6 +60,8 @@ sudo ./reconnoisseur.sh -t 10.10.0.10 -o output -w wordlists
 
 - `-t`, `--target`: Target domain, IPv4 address, or IPv4 CIDR range
 - `-pt`, `--pingout`: Timeout in seconds for the reachability check
+- `-fp`, `--full-ports`: Scan all TCP ports instead of the default top 1000
+- `-nss`, `--no-service-scan`: Skip the follow-up `nmap -sV -sC` scan
 - `-v`, `--verbose`: Enable verbose logging
 - `-o`, `--output`: Set a custom output directory
 - `-w`, `--wordlists`: Set a custom wordlist directory
@@ -69,7 +77,9 @@ sudo ./reconnoisseur.sh -t 10.10.0.10 -o output -w wordlists
 6. Parses and validates the provided arguments
 7. Confirms the target is reachable
 8. Creates the workspace structure
-9. Starts the initial `nmap` port scan
+9. Runs host discovery for CIDR targets and then scans each live host
+10. Runs the initial `nmap` port scan
+11. Runs a follow-up `nmap -sV -sC` scan against discovered open ports unless disabled
 
 ## Notes
 
@@ -77,3 +87,4 @@ sudo ./reconnoisseur.sh -t 10.10.0.10 -o output -w wordlists
 - Dependency installation is interactive when a required tool is missing
 - Current package manager support is limited to `apt` and `yay`
 - Current target validation supports hostnames, IPv4 addresses, and IPv4 CIDR ranges
+- Port scanning is non-interactive; use CLI flags to control full-port and service-scan behavior

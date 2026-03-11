@@ -16,9 +16,6 @@ check_help "$1"
 # Show the welcome message
 step "Welcome to Reconnoisseur - Your automated recon toolkit."
 
-# Make sure the script runs as root
-make_sure_root
-
 # Check terminal colors
 check_colors
 

@@ -12,11 +12,12 @@ print_help() {
   echo -e "\nUsage: $0 [options]"
 
   echo -e "\nOptions:"
-  echo -e "\t-t, --target\tTarget domain or IP address."
-  echo -e "\t-pt, --pingout\tTimeout for host reachability check in seconds (default: 10)."
-  echo -e "\t-v, --verbose\tEnable verbose logging."
-  echo -e "\t-o, --output\tOverwrite output directory, not recommended."
-  echo -e "\t-w, --wordlists\tOverwrite wordlist directory, not recommended."
+  echo -e "\t-t, --target\t\tTarget domain or IP address."
+  echo -e "\t-pt, --pingout\t\tTimeout for host reachability check in seconds (default: 10)."
+  echo -e "\t-fp, --full-ports\tScan all 65535 TCP ports instead of the default top 1000."
+  echo -e "\t-nss, --no-service-scan\tSkip the follow-up service detection scan."
+  echo -e "\t-ncc, --no-color-check\tDisable color support check, save some time."
+  echo -e "\t-v, --verbose\t\tEnable verbose logging."
 
   echo -e "\nExample: $0 -t 10.10.0.10 -pt 15 -v"
 }
@@ -30,9 +31,13 @@ check_help() {
 }
 
 TARGET=""
+SUBNET=false
+
 VERBOSE=false
-OUTPUT=""
-WORDLISTS=""
+
+FULL_PORT_SCAN=false
+SERVICE_SCAN=true
+COLOR_CHECK=true
 
 PINGOUT=""
 
@@ -71,15 +76,14 @@ check_vars() {
       PINGOUT="$2"
       shift
       ;;
-    -o | --output)
-      require_value "$1" "${2-}"
-      OUTPUT="$2"
-      shift
+    -fp | --full-ports)
+      FULL_PORT_SCAN=true
       ;;
-    -w | --wordlists)
-      require_value "$1" "${2-}"
-      WORDLISTS="$2"
-      shift
+    -nss | --no-service-scan)
+      SERVICE_SCAN=false
+      ;;
+    -ncc | --no-color-check)
+      COLOR_CHECK=false
       ;;
     -v | --verbose)
       VERBOSE=true
@@ -146,7 +150,7 @@ validate_vars() {
   step "Validating variables now..."
 
   # Validate the target before any network checks run
-  if [ -z "$TARGET" ]; then
+  if [[ -z "$TARGET" ]]; then
     error "The target wasn't provided!"
     exit 1
   elif [[ "$TARGET" =~ [[:space:]] ]]; then
@@ -160,7 +164,7 @@ validate_vars() {
   fi
 
   # Use a sane timeout range for reachability checks
-  if [ -z "$PINGOUT" ]; then
+  if [[ -z "$PINGOUT" ]]; then
     info "No ping timeout provided, using default of 10 seconds."
 
     PINGOUT=10
@@ -174,7 +178,7 @@ validate_vars() {
   fi
 
   # Validate output and wordlist paths before they reach filesystem commands
-  if [ -n "$OUTPUT" ]; then
+  if [[ -n "$OUTPUT" ]]; then
     if contains_control_chars "$OUTPUT"; then
       error "The output directory contains unsupported control characters."
       exit 1
@@ -186,7 +190,7 @@ validate_vars() {
     info "Gonna put the output right in this directory!"
   fi
 
-  if [ -n "$WORDLISTS" ]; then
+  if [[ -n "$WORDLISTS" ]]; then
     if contains_control_chars "$WORDLISTS"; then
       error "The wordlists directory contains unsupported control characters."
       exit 1
@@ -205,30 +209,43 @@ validate_vars() {
     info "Logging will stay as silent as possible."
   fi
 
+  if [[ "$FULL_PORT_SCAN" == "true" ]]; then
+    info "Port scan mode: all 65535 TCP ports."
+  else
+    info "Port scan mode: nmap default top 1000 TCP ports."
+  fi
+
+  if [[ "$SERVICE_SCAN" == "true" ]]; then
+    info "Service detection: enabled for discovered open ports."
+  else
+    info "Service detection: disabled."
+  fi
+
   success "Variable validation succeeded, nice job."
 }
 
 # Verify the target is reachable before recon begins
 validate_target() {
-  local interface=""
+  local interfaces=""
   local ip_address=""
   local subnet=""
   local local_subnet=""
 
   step "Checking reachability of the target..."
 
-  interface=$(ip route | grep default | awk '{print $5}')
-  ip_address=$(ip addr show "$interface" | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
+  IFS=' ' read -r -a local_subnets <<< "$(ip route | grep -F '/' | awk '{print $1}')"
+
+  info "Found the following local subnets: ${local_subnets[*]}."
 
   if [[ "$TARGET" == *"/"* ]]; then
     info "Seems you are using a subnet, checking compatibility..."
 
     # Compare the target network with the local network
     subnet=$(ipcalc -n "$TARGET" | awk '/Network/ {print $2}')
-    local_subnet=$(ipcalc -n "$ip_address" | awk '/Network/ {print $2}')
 
-    if [[ "$local_subnet" == "$subnet" ]]; then
+    if [[ " ${local_subnets[*]} " == *" $subnet "* ]]; then
       success "You are in the same subnet as the provided target, good job!"
+      SUBNET=true
     else
       error "Please make sure you are in the same subnet as the target."
       info "The target subnet is $subnet and your subnet is $local_subnet. Gotta check up on that."
