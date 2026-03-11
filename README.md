@@ -1,10 +1,10 @@
 # Reconnoisseur
 
-Reconnoisseur is a Bash-based reconnaissance helper that validates a target, prepares a workspace, checks required tools, and starts an initial port scan.
+Reconnoisseur is a modular Bash-based reconnaissance toolkit. It validates a target, prepares a workspace, checks and installs required tools, runs an initial port scan, and optionally performs service detection — all from a single command.
 
 ## Disclaimer
 
-Use this project only against systems and networks you own or are explicitly authorized to assess. You are responsible for complying with applicable laws, rules, and engagement scope.
+Use this project only against systems and networks you own or are explicitly authorized to assess. You are solely responsible for complying with all applicable laws, regulations, and engagement scope.
 
 ## Requirements
 
@@ -12,8 +12,8 @@ Use this project only against systems and networks you own or are explicitly aut
 - `nmap`
 - `ffuf`
 - `ipcalc`
-- `iproute2` or equivalent tools that provide `ip`
-- `iputils-ping` or equivalent tools that provide `ping`
+- `iproute2` or equivalent (`ip` command must be available)
+- `iputils-ping` or equivalent (`ping` command must be available)
 - A supported package manager for automatic dependency installation: `apt` or `yay`
 - Root privileges when running the script
 
@@ -32,7 +32,7 @@ Show the built-in help:
 ./reconnoisseur.sh --help
 ```
 
-Run a basic scan against a target:
+Run a basic scan against a single host:
 
 ```bash
 sudo ./reconnoisseur.sh -t 10.10.0.10
@@ -50,41 +50,65 @@ Run a full TCP sweep and skip service detection:
 sudo ./reconnoisseur.sh -t 10.10.0.10 -fp -nss
 ```
 
-Use custom output and wordlist directories:
+Scan a subnet (must be on the same local network):
 
 ```bash
-sudo ./reconnoisseur.sh -t 10.10.0.10 -o output -w wordlists
+sudo ./reconnoisseur.sh -t 10.10.0.0/24
+```
+
+Skip all confirmation prompts and specify a project name upfront:
+
+```bash
+sudo ./reconnoisseur.sh -t 10.10.0.10 -y -pn my-project
 ```
 
 ## Options
 
-- `-t`, `--target`: Target domain, IPv4 address, or IPv4 CIDR range
-- `-pt`, `--pingout`: Timeout in seconds for the reachability check
-- `-fp`, `--full-ports`: Scan all TCP ports instead of the default top 1000
-- `-nss`, `--no-service-scan`: Skip the follow-up `nmap -sV -sC` scan
-- `-v`, `--verbose`: Enable verbose logging
-- `-o`, `--output`: Set a custom output directory
-- `-w`, `--wordlists`: Set a custom wordlist directory
-- `-h`, `--help`: Print the help text and exit
+| Flag   | Long form           | Description                                                           |
+| ------ | ------------------- | --------------------------------------------------------------------- |
+| `-t`   | `--target`          | Target hostname, IPv4 address, or IPv4 CIDR range (required)          |
+| `-pt`  | `--pingout`         | Timeout in seconds for the reachability check (default: 10, max: 120) |
+| `-fp`  | `--full-ports`      | Scan all 65535 TCP ports instead of the default top 1000              |
+| `-nss` | `--no-service-scan` | Skip the follow-up `nmap -sV -sC` service detection scan              |
+| `-pn`  | `--project-name`    | Set the project name and skip the interactive naming prompt           |
+| `-y`   | `--yes`             | Skip all interactive confirmation prompts                             |
+| `-ncc` | `--no-color-check`  | Skip the terminal color support check at startup                      |
+| `-nd`  | `--no-delay`        | Disable the brief delays between log messages                         |
+| `-v`   | `--verbose`         | Pass `-v` to `nmap` for verbose scan output                           |
+| `-h`   | `--help`            | Print usage information and exit                                      |
+
+## Project Structure
+
+```
+reconnoisseur.sh          Entry point and main workflow
+modules/
+  helpers.sh              Colored logging functions (step, info, success, warn, error)
+  init.sh                 Workspace directory setup
+  parser.sh               CLI argument parsing, input validation, and target reachability
+  ports.sh                Port scanning, service detection, and subnet host discovery
+  system.sh               Package manager detection and dependency verification
+  web-enumeration.sh      Web enumeration (planned)
+```
 
 ## What The Script Does
 
-1. Shows the help text when requested
-2. Checks that the script is run as root
-3. Verifies terminal color output
-4. Detects a supported package manager
-5. Checks for required tools and offers to install missing ones
-6. Parses and validates the provided arguments
-7. Confirms the target is reachable
-8. Creates the workspace structure
-9. Runs host discovery for CIDR targets and then scans each live host
-10. Runs the initial `nmap` port scan
-11. Runs a follow-up `nmap -sV -sC` scan against discovered open ports unless disabled
+1. Displays help when `-h` or `--help` is passed
+2. Parses and validates all CLI arguments
+3. Optionally displays a color check to confirm terminal output is readable
+4. Detects a supported package manager (`apt` or `yay`)
+5. Verifies required tools are installed and offers to install any that are missing
+6. Validates the target format (hostname, IPv4, or CIDR) and confirms it is reachable via ping
+7. For CIDR targets, checks that the host is on the same local subnet before proceeding
+8. Prompts for a project name (or uses `-pn`) and creates a workspace under `output/<name>/`
+9. For CIDR targets, runs an `nmap -sn` host discovery sweep and iterates over each live host
+10. Runs an initial `nmap` port scan (top 1000 or all 65535 TCP ports depending on `-fp`)
+11. Runs a follow-up `nmap -sV -sC` scan against discovered open ports unless `-nss` is set
+
+All results are saved to `output/<project-name>/nmap/` in `.nmap`, `.gnmap`, and `.xml` formats.
 
 ## Notes
 
-- The script will prompt for a project name before creating the workspace directory
-- Dependency installation is interactive when a required tool is missing
-- Current package manager support is limited to `apt` and `yay`
-- Current target validation supports hostnames, IPv4 addresses, and IPv4 CIDR ranges
-- Port scanning is non-interactive; use CLI flags to control full-port and service-scan behavior
+- Subnet scanning (`-t x.x.x.x/24`) requires the host to be on the same local network as the target range
+- The `-y` flag suppresses all prompts including workspace overwrite confirmation; use with care
+- Package manager support is currently limited to `apt` and `yay`
+- The `web-enumeration.sh` module is a stub and not yet functional
