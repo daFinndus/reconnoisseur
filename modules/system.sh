@@ -41,12 +41,16 @@ check_pkgs() {
         if ! command -v "$pkg" &> /dev/null; then
             warn "Package $pkg is not installed. Installing..."
 
-            # Ask before attempting to install a missing dependency
-            read -r -p "[$(timestamp)] Do you want to install $pkg? (y/n) " answer
+            if [[ "$YES" != "true" ]]; then
+                # Ask before attempting to install a missing dependency
+                read -r -p "[$(timestamp)] Do you want to install $pkg? (y/n) " answer
 
-            if [[ "$answer" != "y" ]]; then
-                error "Package $pkg is required. Exiting."
-                exit 1
+                if [[ "$answer" != "y" ]]; then
+                    error "Package $pkg is required. Exiting."
+                    exit 1
+                fi
+            else
+                warn "Skipping confirmation prompt, installing $pkg!"
             fi
 
             # Install with the detected package manager

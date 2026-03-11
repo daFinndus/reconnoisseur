@@ -16,9 +16,12 @@ print_help() {
   echo -e "\t-pt, --pingout\t\tTimeout for host reachability check in seconds (default: 10)."
   echo -e "\t-fp, --full-ports\tScan all 65535 TCP ports instead of the default top 1000."
   echo -e "\t-nss, --no-service-scan\tSkip the follow-up service detection scan."
+  echo -e "\t-y, --yes\t\tSkip all confirmation prompts, use with caution!"
+  echo -e 
   echo -e "\t-ncc, --no-color-check\tDisable color support check, save some time."
+  echo -e "\t-pn, --project-name\tSpecify the project name, skip whole init section."
   echo -e "\t-v, --verbose\t\tEnable verbose logging."
-
+  echo -e "\t-nd, --no-delay\t\tDisable the delay after chat messages for clarity, will improve speed."
   echo -e "\nExample: $0 -t 10.10.0.10 -pt 15 -v"
 }
 
@@ -37,9 +40,14 @@ VERBOSE=false
 
 FULL_PORT_SCAN=false
 SERVICE_SCAN=true
+
+DELAY=true
 COLOR_CHECK=true
+YES=false
 
 PINGOUT=""
+
+WORKSPACE=""
 
 # Ensure options that require values are not missing their arguments
 require_value() {
@@ -79,11 +87,22 @@ check_vars() {
     -fp | --full-ports)
       FULL_PORT_SCAN=true
       ;;
+    -pn | --project-name)
+      require_value "$1" "${2-}"
+      WORKSPACE="output/$2"
+      shift
+      ;;
     -nss | --no-service-scan)
       SERVICE_SCAN=false
       ;;
     -ncc | --no-color-check)
       COLOR_CHECK=false
+      ;;
+    -nd | --no-delay)
+      DELAY=false
+      ;;
+    -y | --yes)
+      YES=true
       ;;
     -v | --verbose)
       VERBOSE=true
@@ -155,9 +174,6 @@ validate_vars() {
     exit 1
   elif [[ "$TARGET" =~ [[:space:]] ]]; then
     error "The target must not contain whitespace."
-    exit 1
-  elif contains_control_chars "$TARGET" || ! is_valid_target "$TARGET"; then
-    error "The target must be a valid IPv4 address, hostname, or IPv4 CIDR range."
     exit 1
   else
     success "Updated target: $TARGET."
@@ -232,6 +248,11 @@ validate_target() {
   local local_subnet=""
 
   step "Checking reachability of the target..."
+
+  if contains_control_chars "$TARGET" || ! is_valid_target "$TARGET"; then
+    error "The target must be a valid IPv4 address, hostname, or IPv4 CIDR range."
+    exit 1
+  fi
 
   IFS=' ' read -r -a local_subnets <<< "$(ip route | grep -F '/' | awk '{print $1}')"
 

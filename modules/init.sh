@@ -9,9 +9,10 @@ source modules/parser.sh
 # Show a quick color preview for the current terminal
 check_colors() {
   if [[ "$COLOR_CHECK" = "true" ]]; then
-    warn "Skipping color support check as requested, this will save some time but might lead to suboptimal output formatting."
     return
   fi
+
+  info "Color check is $COLOR_CHECK"
 
   step "Checking if the terminal displays colors correctly..."
 
@@ -39,31 +40,35 @@ init_workspace() {
   mkdir -p "wordlists"
   success "Also made sure that the wordlists directory exists."
 
-  read -rp "[$(timestamp)] Please give this project a name: " name
+  if [[ -n "$WORKSPACE" ]]; then
+    info "Project name provided via CLI, creating workspace..."
+  else
+    read -rp "[$(timestamp)] Please give this project a name: " name
 
-  info "Using $name as the project name and creating workspace directories..."
+    info "Using $name as the project name and creating workspace directories..."
 
-  WORKSPACE="output/$name"
+    WORKSPACE="output/$name"
+  fi
 
   # Reuse an existing workspace or create a new one for this run
   if [[ -d "$WORKSPACE" ]]; then
     warn "A workspace with the name $name already exists, using it..."
-    sleep 1.5s
-
     warn "This will probably overwrite existing files, make sure nothing important is there!"
-    sleep 1.5s
 
-    read -rp "[$(timestamp)] Do you want to continue with this workspace? (y/n) " answer
+    if [[ "$YES" == "false" ]]; then
+      read -rp "[$(timestamp)] Do you want to continue with this workspace? (y/n) " answer
 
-    if [[ "$answer" != "y" ]]; then
-      error "Probably a good decision, good bye!"
-      exit 1
+      if [[ "$answer" != "y" ]]; then
+        error "Probably a good decision, good bye!"
+        exit 1
+      fi
+    else
+      warn "Skipping confirmation prompt as requested, be careful with that!"
     fi
-  else
-    mkdir -p "$WORKSPACE"
-    success "Workspace created at $WORKSPACE."
   fi
+  
+  mkdir -p "$WORKSPACE"
+  success "Workspace created!"
 
   info "The output directory for this project lies in $WORKSPACE, you can find all results there."
-  success "Also checked the wordlists directory!"
 }

@@ -19,29 +19,44 @@ timestamp() {
 # Print a primary step message and pause briefly for readability
 step() {
   echo -e "\n${CYAN}[$(timestamp)] ${RESET}$1"
-  sleep 1s
+  
+  if [[ "$DELAY" == "true" ]]; then
+    sleep 1s
+  fi
 }
 
 # Print an informational log message
 info() {
   echo -e "${BLUE}[$(timestamp)] ${RESET}$1"
-  sleep 0.5s
+
+  if [[ "$DELAY" == "true" ]]; then
+    sleep 0.5s
+  fi
 }
 
 # Print a success log message
 success() {
   echo -e "${GREEN}[$(timestamp)] ${RESET}$1"
-  sleep 0.5s
+  
+  if [[ "$DELAY" == "true" ]]; then
+    sleep 0.5s
+  fi
 }
 
 # Print a warning log message
 warn() {
   echo -e "${YELLOW}[$(timestamp)] ${RESET}$1"
-  sleep 0.5s
+  
+  if [[ "$DELAY" == "true" ]]; then
+    sleep 0.5s
+  fi
 }
 
 # Print an error log message and pause so it stays visible
 error() {
   echo -e "${RED}[$(timestamp)] ${RESET}$1"
-  sleep 0.5s
+  
+  if [[ "$DELAY" == "true" ]]; then
+    sleep 1.5s
+  fi
 }

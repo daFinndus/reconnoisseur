@@ -56,37 +56,46 @@ scan_host_ports() {
     local ports=""
     local scan_confirm=""
 
-    read -rp "[$(timestamp)] Do you wanna run a nmap scan on $host? (y/n) " scan_confirm
+    if [[ "$YES" != "true" ]]; then
+        read -rp "[$(timestamp)] Do you wanna run a nmap scan on $host? (y/n) " scan_confirm
 
-    if [[ "$scan_confirm" == "y" ]]; then
-        if [[ "$FULL_PORT_SCAN" == "true" ]]; then
-            info "Scanning all TCP ports on $host. This may take a while."
-
-            if ! run_nmap_scan "$output" -Pn -p- "$host"; then
-                error "Port scan failed for $host."
-                return 1
-            fi
-        else
-            info "Scanning nmap's default top 1000 TCP ports on $host."
-
-            if ! run_nmap_scan "$output" -Pn "$host"; then
-                error "Port scan failed for $host."
-                return 1
-            fi
+        if [[ "$scan_confirm" != "y" ]]; then
+            info "Skipping $host as requested."
+            return 0
         fi
-
-        ports=$(extract_ports "$output.gnmap")
-
-        if [[ -n "$ports" ]]; then
-            success "Open TCP ports on $host: $ports"
-        else
-            warn "No open TCP ports found on $host."
-        fi
-
-        run_service_scan  "$output" "$host" "$ports" || return 1
     else
-        info "Alright, skipping $host..."
+        warn "Skipping confirmation prompt again, scanning $host!"
     fi
+
+    if [[ "$FULL_PORT_SCAN" == "true" ]]; then
+        info "Scanning all TCP ports on $host. This may take a while."
+
+        if ! run_nmap_scan "$output" -Pn -p- "$host"; then
+            error "Port scan failed for $host."
+            return 1
+        fi
+    else
+        info "Scanning nmap's default top 1000 TCP ports on $host."
+
+        if ! run_nmap_scan "$output" -Pn "$host"; then
+            error "Port scan failed for $host."
+            return 1
+        fi
+    fi
+
+    ports=$(extract_ports "$output.gnmap")
+
+    # Add a newline before the ports output for better formatting
+    printf '\n'
+
+    if [[ -n "$ports" ]]; then
+        success "Open TCP ports on $host: $ports"
+    else
+        warn "No open TCP ports found on $host."
+    fi
+
+    run_service_scan  "$output" "$host" "$ports" || return 1
+
 }
 
 # This will run a service scan on the specified host and open ports
@@ -107,12 +116,15 @@ run_service_scan() {
 
     info "Running service detection against $host on ports $ports."
 
-    if ! run_nmap_scan "$output" -Pn -sV -sC -p "$ports" "$host"; then
+    if ! run_nmap_scan "$output"-service -Pn -sV -sC -p "$ports" "$host"; then
         error "Service detection failed for $host."
         return 1
     fi
 
-    success "\nSaved service detection results to $output.nmap, .gnmap and .xml."
+    # Add a newline for better formatting
+    printf '\f'
+
+    success "Saved service detection results to $output-service.nmap, .gnmap and .xml."
 }
 
 scan_subnet_hosts() {
@@ -164,9 +176,9 @@ run_nmap_scan() {
 
     cmd+=("$@" -oA "$output")
 
-    info "Running: sudo ${cmd[*]}\n"
+    info "Running: ${cmd[*]}\n"
 
-    "sudo ${cmd[@]}"
+    "${cmd[@]}"
 }
 
 # This will extract all open ports, then return them as a comma-separated list

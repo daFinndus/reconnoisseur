@@ -16,6 +16,12 @@ check_help "$1"
 # Show the welcome message
 step "Welcome to Reconnoisseur - Your automated recon toolkit."
 
+# Parse command-line arguments
+check_vars "$@"
+
+# Validate the provided values
+validate_vars
+
 # Check terminal colors
 check_colors
 
@@ -25,11 +31,7 @@ check_pkg_manager
 # Validate required tools
 check_pkgs
 
-# Parse command-line arguments
-check_vars "$@"
-
-# Validate the provided values
-validate_vars
+# Validate the target and check if it's alive
 validate_target
 
 # Prepare the workspace
