@@ -149,6 +149,10 @@ scan_subnet_hosts() {
     fi
 
     printf '%s\n' "${hosts[@]}" > "$hosts_file"
+
+    # Add a newline for better formatting
+    printf '\f'
+
     success "Discovered ${#hosts[@]} live host(s). Saved the list to $hosts_file."
 
     for host in "${hosts[@]}"; do

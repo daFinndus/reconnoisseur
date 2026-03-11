@@ -8,11 +8,9 @@ source modules/parser.sh
 
 # Show a quick color preview for the current terminal
 check_colors() {
-  if [[ "$COLOR_CHECK" = "true" ]]; then
+  if [[ "$COLOR_CHECK" = "false" ]]; then
     return
   fi
-
-  info "Color check is $COLOR_CHECK"
 
   step "Checking if the terminal displays colors correctly..."
 
