@@ -31,7 +31,7 @@ check_pkg_manager
 check_pkgs
 
 # Now also validate all variables that depend on the previous checks
-validate_vars_dependent
+check_vars_dependent "$@"
 
 # Validate the target and check if it's alive
 validate_target
