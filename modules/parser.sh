@@ -97,16 +97,10 @@ check_vars_undependent() {
 			exit 1
 			;;
 		*)
-			# Check if it's a required variable
-			# Required vars will throw an error otherwise
-			# Do not exit on these
-			if [[ " ${required_vars[*]} " == *" $1 "* ]]; then
-				continue
-			else
+			if [[ ! " ${required_vars[*]} " =~ " $1 " ]]; then
 				error "Unknown parameter passed: $1."
 				exit 1
 			fi
-
 			;;
 		esac
 		shift
