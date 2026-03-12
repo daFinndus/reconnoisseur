@@ -90,7 +90,7 @@ scan_host_ports() {
         warn "No open TCP ports found on $host."
     fi
 
-    run_service_scan  "$output" "$host" "$ports" || return 1
+    run_service_scan "$output" "$host" "$ports" || return 1
 
 }
 
