@@ -86,6 +86,11 @@ parse_args() {
 		esac
 		shift
 	done
+
+	if [[ -z "$TARGET" ]]; then
+		error "The target is required but was not provided. Specify via -t."
+		exit 1
+	fi
 }
 
 # Ensure options that require values are not missing their arguments
