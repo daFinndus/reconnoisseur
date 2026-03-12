@@ -20,7 +20,7 @@ timestamp() {
 
 # Print a primary step message and pause briefly for readability
 step() {
-  echo -e "\n${COLORS[4]}[$(timestamp)] ${COLORS[:-1]}$1"
+  echo -e "\n${COLORS[4]}[$(timestamp)] ${COLORS[-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 1s
@@ -29,7 +29,7 @@ step() {
 
 # Print an informational log message
 info() {
-  echo -e "${COLORS[3]}[$(timestamp)] ${COLORS[:-1]}$1"
+  echo -e "${COLORS[3]}[$(timestamp)] ${COLORS[-1]}$1"
 
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -38,7 +38,7 @@ info() {
 
 # Print a success log message
 success() {
-  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[:-1]}$1"
+  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -47,7 +47,7 @@ success() {
 
 # Print a warning log message
 warn() {
-  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[:-1]}$1"
+  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -56,7 +56,7 @@ warn() {
 
 # Print an error log message and pause so it stays visible
 error() {
-  echo -e "${COLORS[1]}[$(timestamp)] ${COLORS[:-1]}$1"
+  echo -e "${COLORS[1]}[$(timestamp)] ${COLORS[-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 1.5s
