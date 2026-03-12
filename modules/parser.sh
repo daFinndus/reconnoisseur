@@ -33,6 +33,20 @@ check_help() {
   fi
 }
 
+check_required_vars() {
+	local target_set=false
+
+	while [[ "$#" -gt 0 ]]; do
+		case $1 in
+			-t | --target)
+				target_set=true
+				shift
+				;;
+		esac
+		shift
+	done
+}
+
 # Parse command-line arguments into global variables
 check_vars_undependent() {
   while [[ "$#" -gt 0 ]]; do
