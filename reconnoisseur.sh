@@ -15,6 +15,9 @@ source modules/ports.sh
 # Check for help before doing anything else
 check_help "$1"
 
+# Check for required variables before doing anything else
+check_required_vars "$@"
+
 # Show the welcome message
 step "Welcome to Reconnoisseur - Your automated recon toolkit."
 
