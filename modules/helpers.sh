@@ -4,13 +4,13 @@
 # -------------------------------------------
 
 # Set up colors for readable log output
-declare -rA COLORS=(
-  [RED]="\e[31m"
-  [GREEN]="\e[32m"
-  [YELLOW]="\e[33m"
-  [BLUE]="\e[34m"
-  [CYAN]="\e[36m"
-  [RESET]="\e[0m"
+readonly COLORS=(
+  RED="\e[31m"
+  GREEN="\e[32m"
+  YELLOW="\e[33m"
+  BLUE="\e[34m"
+  CYAN="\e[36m"
+  RESET="\e[0m"
 )
 
 # Return the current time for log message prefixes

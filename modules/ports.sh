@@ -5,43 +5,43 @@
 
 # This will replace slashes, colons, whitespaces and any other dangerous chars
 sanitize_scan_name() {
-    local value="$1"
+  local value="$1"
 
-    value="${value//\//_}"
-    value="${value//:/_}"
-    value="${value// /_}"
-    value="${value//[^[:alnum:]._-]/_}"
+  value="${value//\//_ }"
+  value="${value//:/_}"
+  value="${value// /_}"
+  value="${value//[^[:alnum:]._-]/_}"
 
-    printf '%s' "$value"
+  printf '%s' "$value"
 }
 
 # Scan the target for open ports and save the results
 portscan() {
-    local output_name=""
+  local output_name=""
 
-    step "Proceeding with the port scan!"
+  step "Proceeding with the port scan!"
 
-    output_name=$(sanitize_scan_name "$TARGET")
-    info "Using $output_name as the output name for $TARGET."
+  output_name=$(sanitize_scan_name "$TARGET")
+  info "Using $output_name as the output name for $TARGET."
 
-    # Create a dedicated directory for nmap output
-    mkdir -p "$WORKSPACE/nmap"
+  # Create a dedicated directory for nmap output
+  mkdir -p "$WORKSPACE/nmap"
 
-    success "Created the nmap directory in the workspace!"
+  success "Created the nmap directory in the workspace!"
 
-    info "Doing an nmap scan on $TARGET now..."
+  info "Doing an nmap scan on $TARGET now..."
 
-    # Set the output directory
-    local output_directory="$WORKSPACE/nmap/$output_name"
+  # Set the output directory
+  local output_directory="$WORKSPACE/nmap/$output_name"
 
-    if [[ "$SUBNET" == "true" ]]; then
-        info "Subnet mode is enabled, so the scan will discover live hosts and then scan each of them."
-        scan_subnet_hosts "$output_directory" || return 1
-    else
-        scan_host_ports "$output_directory" "$TARGET" || return 1
-    fi
+  if [[ "$SUBNET" == "true" ]]; then
+    info "Subnet mode is enabled, so the scan will discover live hosts and then scan each of them."
+    scan_subnet_hosts "$output_directory" || return 1
+  else
+    scan_host_ports "$output_directory" "$TARGET" || return 1
+  fi
 
-    success "Port scanning finished. Results are stored in $WORKSPACE/nmap."
+  success "Port scanning finished. Results are stored in $WORKSPACE/nmap."
 }
 
 # This function will scan the target for open ports and save the results, then proceed to run a service scan
@@ -162,43 +162,43 @@ scan_subnet_hosts() {
 
 # This function is for running the nmap scan
 run_nmap_scan() {
-    # Where to put the nmap scan results
-    local output="$1"
+  # Where to put the nmap scan results
+  local output="$1"
 
-    shift
+  shift
 
-    # cmd is an array of commands, that's the -a flag
-    local -a cmd=(nmap)
+  # cmd is an array of commands, that's the -a flag
+  local -a cmd=(nmap)
 
-    [ "$VERBOSE" == "true" ] && cmd+=(-v)
+  [ "$VERBOSE" == "true" ] && cmd+=(-v)
 
-    cmd+=("$@" -oA "$output")
+  cmd+=("$@" -oA "$output")
 
-    info "Running: ${cmd[*]}\n"
+  info "Running: ${cmd[*]}"
 
-    "${cmd[@]}"
+  "${cmd[@]}"
 }
 
 # This will extract all open ports, then return them as a comma-separated list
 extract_ports() {
-    local gnmap_file="$1"
+  local gnmap_file="$1"
 
-    awk -F'Ports: ' '
-        /Ports: / {
-            n = split($2, entries, ", ")
-            for (i = 1; i <= n; i++) {
-                split(entries[i], fields, "/")
-                if (fields[2] == "open") {
-                    print fields[1]
-                }
-            }
+  awk -F'Ports: ' '
+    /Ports: / {
+      n = split($2, entries, ", ")
+      for (i = 1; i <= n; i++) {
+        split(entries[i], fields, "/")
+        if (fields[2] == "open") {
+          print fields[1]
         }
-    ' "$gnmap_file" | sort -n -u | paste -sd, -
+      }
+    }
+  ' "$gnmap_file" | sort -n -u | paste -sd, -
 }
 
 # This function will grab all running hosts
 extract_live_hosts() {
-    local gnmap_file="$1"
+  local gnmap_file="$1"
 
-    awk '/Status: Up/ { print $2 }' "$gnmap_file"
+  awk '/Status: Up/ { print $2 }' "$gnmap_file"
 }
