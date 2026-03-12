@@ -4,12 +4,14 @@
 # -------------------------------------------
 
 # Set up colors for readable log output
-RED="\033[0;31m"
-GREEN="\033[0;32m"
-YELLOW="\033[1;33m"
-BLUE="\033[0;34m"
-CYAN="\033[0;36m"
-RESET="\033[0m"
+declare -rA COLORS=(
+  [RED]="\e[31m"
+  [GREEN]="\e[32m"
+  [YELLOW]="\e[33m"
+  [BLUE]="\e[34m"
+  [CYAN]="\e[36m"
+  [RESET]="\e[0m"
+)
 
 # Return the current time for log message prefixes
 timestamp() {
@@ -18,7 +20,7 @@ timestamp() {
 
 # Print a primary step message and pause briefly for readability
 step() {
-  echo -e "\n${CYAN}[$(timestamp)] ${RESET}$1"
+  echo -e "\n${COLORS[4]}[$(timestamp)] ${COLORS[:-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 1s
@@ -27,7 +29,7 @@ step() {
 
 # Print an informational log message
 info() {
-  echo -e "${BLUE}[$(timestamp)] ${RESET}$1"
+  echo -e "${COLORS[3]}[$(timestamp)] ${COLORS[:-1]}$1"
 
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -36,7 +38,7 @@ info() {
 
 # Print a success log message
 success() {
-  echo -e "${GREEN}[$(timestamp)] ${RESET}$1"
+  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[:-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -45,7 +47,7 @@ success() {
 
 # Print a warning log message
 warn() {
-  echo -e "${YELLOW}[$(timestamp)] ${RESET}$1"
+  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[:-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -54,9 +56,19 @@ warn() {
 
 # Print an error log message and pause so it stays visible
 error() {
-  echo -e "${RED}[$(timestamp)] ${RESET}$1"
+  echo -e "${COLORS[1]}[$(timestamp)] ${COLORS[:-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 1.5s
   fi
+}
+
+# Return success when the provided value is a positive integer
+is_positive_integer() {
+  [[ "$1" =~ ^[1-9][0-9]*$ ]]
+}
+
+# Reject values that contain control characters
+contains_control_chars() {
+  [[ "$1" =~ [[:cntrl:]] ]]
 }

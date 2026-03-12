@@ -3,14 +3,9 @@
 # This script prepares the workspace directories
 # -----------------------------------------------
 
-source modules/helpers.sh
-source modules/parser.sh
-
 # Show a quick color preview for the current terminal
 check_colors() {
-  if [[ "$COLOR_CHECK" = "false" ]]; then
-    return
-  fi
+  [ "$COLOR_CHECK" == "false" ] && return
 
   step "Checking if the terminal displays colors correctly..."
 
@@ -21,8 +16,6 @@ check_colors() {
 
   info "The script can run without the colors being a 100% match."
 }
-
-WORKSPACE=""
 
 # Ensure the output and wordlist directories exist
 init_workspace() {
@@ -38,19 +31,19 @@ init_workspace() {
   mkdir -p "wordlists"
   success "Also made sure that the wordlists directory exists."
 
-  if [[ -n "$WORKSPACE" ]]; then
+  if [[ -n "$PROJECT_NAME" ]]; then
     info "Project name provided via CLI, creating workspace..."
   else
     read -rp "[$(timestamp)] Please give this project a name: " name
 
     info "Using $name as the project name and creating workspace directories..."
-
-    WORKSPACE="output/$name"
   fi
+
+  WORKSPACE="${OUTPUT:-$DEFAULT_OUTPUT}/${PROJECT_NAME:-$name}"
 
   # Reuse an existing workspace or create a new one for this run
   if [[ -d "$WORKSPACE" ]]; then
-    warn "A workspace with the name $name already exists, using it..."
+    warn "A workspace with the name ${PROJECT_NAME:-$name} already exists, using it..."
     warn "This will probably overwrite existing files, make sure nothing important is there!"
 
     if [[ "$YES" == "false" ]]; then
@@ -68,5 +61,5 @@ init_workspace() {
   mkdir -p "$WORKSPACE"
   success "Workspace created!"
 
-  info "The output directory for this project lies in $WORKSPACE, you can find all results there."
+  info "The output directory for this project lies in $WORKSPACE."
 }

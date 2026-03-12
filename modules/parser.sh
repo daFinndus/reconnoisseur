@@ -3,8 +3,6 @@
 # This script parses and validates CLI arguments
 # --------------------------------------------------
 
-source modules/helpers.sh
-
 # Print CLI usage information
 print_help() {
   echo "Reconnoisseur v1.0.0 (https://github.com/daFinndus/reconnoisseur)"
@@ -17,7 +15,9 @@ print_help() {
   echo -e "\t-fp, --full-ports\tScan all 65535 TCP ports instead of the default top 1000."
   echo -e "\t-nss, --no-service-scan\tSkip the follow-up service detection scan."
   echo -e "\t-y, --yes\t\tSkip all confirmation prompts, use with caution!"
-  echo -e 
+  echo
+  echo -e "\t-o, --output\t\tSpecify a custom output directory for all results."
+  echo
   echo -e "\t-ncc, --no-color-check\tDisable color support check, save some time."
   echo -e "\t-pn, --project-name\tSpecify the project name, skip whole init section."
   echo -e "\t-v, --verbose\t\tEnable verbose logging."
@@ -33,21 +33,69 @@ check_help() {
   fi
 }
 
-TARGET=""
-SUBNET=false
+# Parse command-line arguments into global variables
+check_vars_undependent() {
+  while [[ "$#" -gt 0 ]]; do
+    case $1 in
+    -pt | --pingout)
+      require_value "$1" "${2-}"
+      validate_pingout "$2"
+      shift
+      ;;
+    -fp | --full-ports)
+      FULL_PORT_SCAN=true
+      ;;
+    -nss | --no-service-scan)
+      SERVICE_SCAN=false
+      ;;
+    -y | --yes)
+      YES=true
+      ;;
+    -o | --output)
+      require_value "$1" "${2-}"
+      validate_output "$2"
+      shift
+      ;;
+    -ncc | --no-color-check)
+      COLOR_CHECK=false
+      ;;
+    -pn | --project-name)
+      require_value "$1" "${2-}"
+      validate_project_name "$2"
+      shift
+      ;;
+    -v | --verbose)
+      VERBOSE=true
+      ;;
+    -nd | --no-delay)
+      DELAY=false
+      ;;
+    -h | --help)
+      error "Help option detected, please run without additional arguments!"
+      exit 1
+      ;;
+    *)
+      error "Unknown parameter passed: $1."
+      exit 1
+      ;;
+    esac
+    shift
+  done
+}
 
-VERBOSE=false
-
-FULL_PORT_SCAN=false
-SERVICE_SCAN=true
-
-DELAY=true
-COLOR_CHECK=true
-YES=false
-
-PINGOUT=""
-
-WORKSPACE=""
+# This is for vars that depend on packages
+check_vars_dependent() {
+  while [[ "$#" -gt 0 ]]; do
+    case $1 in
+    -t | --target)
+      require_value "$1" "${2-}"
+      validate_target "$2"
+      shift
+      ;;
+    esac
+    shift
+  done
+}
 
 # Ensure options that require values are not missing their arguments
 require_value() {
@@ -60,227 +108,117 @@ require_value() {
   fi
 }
 
-# Return success when the provided value is a positive integer
-is_positive_integer() {
-  [[ "$1" =~ ^[1-9][0-9]*$ ]]
-}
+# Verify the target is reachable before recon begins
+# Checks for single host or subnet, sanitizes the target, checks reachability
+validate_target() {
+  local target="$1"
 
-# Reject values that contain control characters
-contains_control_chars() {
-  [[ "$1" =~ [[:cntrl:]] ]]
-}
+  # This stores the specified subnet and local subnets of the host
+  local subnet=""
+  local -a local_subnets=()
 
-# Parse command-line arguments into global variables
-check_vars() {
-  while [[ "$#" -gt 0 ]]; do
-    case $1 in
-    -t | --target)
-      require_value "$1" "${2-}"
-      TARGET="$2"
-      shift
-      ;;
-    -pt | --pingout)
-      require_value "$1" "${2-}"
-      PINGOUT="$2"
-      shift
-      ;;
-    -fp | --full-ports)
-      FULL_PORT_SCAN=true
-      ;;
-    -pn | --project-name)
-      require_value "$1" "${2-}"
-      WORKSPACE="output/$2"
-      shift
-      ;;
-    -nss | --no-service-scan)
-      SERVICE_SCAN=false
-      ;;
-    -ncc | --no-color-check)
-      COLOR_CHECK=false
-      ;;
-    -nd | --no-delay)
-      DELAY=false
-      ;;
-    -y | --yes)
-      YES=true
-      ;;
-    -v | --verbose)
-      VERBOSE=true
-      shift
-      ;;
-    *)
-      error "Unknown parameter passed: $1."
-      ;;
-    esac
-    shift
-  done
-}
-
-# Validate IPv4 addresses one octet at a time
-is_valid_ipv4() {
-  local candidate="$1"
-  local octets=()
-
-  [[ "$candidate" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
-
-  # Split the candidate by dots into octets
-  IFS='.' read -r -a octets <<< "$candidate"
-
-  # Make sure each octet is between 0 and 255
-  for octet in "${octets[@]}"; do
-    ((octet >= 0 && octet <= 255)) || return 1
-  done
-}
-
-# Validate hostnames made of DNS-compatible labels
-is_valid_hostname() {
-  local candidate="$1"
-
-  [[ ${#candidate} -le 253 ]] || return 1
-  [[ "$candidate" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]] || return 1
-}
-
-# Accept IPv4 hosts, DNS names, and IPv4 CIDR ranges
-is_valid_target() {
-  local candidate="$1"
-  local address=""
-  local prefix=""
-
-  if [[ "$candidate" == */* ]]; then
-    address="${candidate%/*}"
-    prefix="${candidate#*/}"
-
-    info "Got address $address and prefix $prefix from the provided CIDR notation."
-
-    is_valid_ipv4 "$address" || return 1
-
-    # Check whether the prefix is a number between 0 and 32
-    [[ "$prefix" =~ ^[0-9]+$ ]] || return 1
-    ((prefix >= 0 && prefix <= 32)) || return 1
-
-    return 0
-  fi
-
-  is_valid_ipv4 "$candidate" || is_valid_hostname "$candidate"
-}
-
-# Validate parsed CLI variables and log the chosen configuration
-validate_vars() {
-  step "Validating variables now..."
+  step "Validating the target now..."
 
   # Validate the target before any network checks run
-  if [[ -z "$TARGET" ]]; then
+  if [[ -z "$target" ]]; then
     error "The target wasn't provided!"
     exit 1
-  elif [[ "$TARGET" =~ [[:space:]] ]]; then
+  elif [[ "$target" =~ [[:space:]] ]]; then
     error "The target must not contain whitespace."
     exit 1
-  else
-    success "Updated target: $TARGET."
-  fi
-
-  # Use a sane timeout range for reachability checks
-  if [[ -z "$PINGOUT" ]]; then
-    info "No ping timeout provided, using default of 10 seconds."
-
-    PINGOUT=10
-  else
-    if is_positive_integer "$PINGOUT" && ((PINGOUT > 0)) && ((PINGOUT <= 120)); then
-      success "Updated ping timeout: $PINGOUT seconds."
-    else
-      warn "Invalid ping timeout (1-120), using default value of 10 seconds!"
-      PINGOUT=10
-    fi
-  fi
-
-  # Validate output and wordlist paths before they reach filesystem commands
-  if [[ -n "$OUTPUT" ]]; then
-    if contains_control_chars "$OUTPUT"; then
-      error "The output directory contains unsupported control characters."
-      exit 1
-    fi
-
-    success "Updated output directory: $OUTPUT."
-    info "Let's hope nothing breaks..."
-  else
-    info "Gonna put the output right in this directory!"
-  fi
-
-  if [[ -n "$WORDLISTS" ]]; then
-    if contains_control_chars "$WORDLISTS"; then
-      error "The wordlists directory contains unsupported control characters."
-      exit 1
-    fi
-
-    success "Updated wordlists directory: $WORDLISTS."
-    info "All damage will be because of you!"
-  else
-    info "Using default values for the wordlists directory."
-  fi
-
-  # Show the selected logging level
-  if [[ "$VERBOSE" == "true" ]]; then
-    success "Logging is now verbose. Good luck with that!"
-  else
-    info "Logging will stay as silent as possible."
-  fi
-
-  if [[ "$FULL_PORT_SCAN" == "true" ]]; then
-    info "Port scan mode: all 65535 TCP ports."
-  else
-    info "Port scan mode: nmap default top 1000 TCP ports."
-  fi
-
-  if [[ "$SERVICE_SCAN" == "true" ]]; then
-    info "Service detection: enabled for discovered open ports."
-  else
-    info "Service detection: disabled."
-  fi
-
-  success "Variable validation succeeded, nice job."
-}
-
-# Verify the target is reachable before recon begins
-validate_target() {
-  local interfaces=""
-  local ip_address=""
-  local subnet=""
-  local local_subnet=""
-
-  step "Checking reachability of the target..."
-
-  if contains_control_chars "$TARGET" || ! is_valid_target "$TARGET"; then
+  elif contains_control_chars "$target"; then
+    error "The target contains unsupported control characters."
+    exit 1
+  elif ! is_valid_target "$target"; then
     error "The target must be a valid IPv4 address, hostname, or IPv4 CIDR range."
     exit 1
   fi
 
-  IFS=' ' read -r -a local_subnets <<< "$(ip route | grep -F '/' | awk '{print $1}')"
+  success "Target $target looks good, let's see if it's reachable."
 
-  info "Found the following local subnets: ${local_subnets[*]}."
+  step "Checking reachability of the target..."
 
-  if [[ "$TARGET" == *"/"* ]]; then
+  if [[ "$target" == *"/"* ]]; then
     info "Seems you are using a subnet, checking compatibility..."
 
+    IFS=' ' read -r -a local_subnets <<< "$(ip route | grep -F '/' | awk '{print $1}')"
+
+    info "Found the following local subnets: ${local_subnets[*]}."
+
     # Compare the target network with the local network
-    subnet=$(ipcalc -n "$TARGET" | awk '/Network/ {print $2}')
+    subnet=$(ipcalc -n "$target" | awk '/Network/ {print $2}')
 
     if [[ " ${local_subnets[*]} " == *" $subnet "* ]]; then
       success "You are in the same subnet as the provided target, good job!"
+
       SUBNET=true
     else
       error "Please make sure you are in the same subnet as the target."
-      info "The target subnet is $subnet and your subnet is $local_subnet. Gotta check up on that."
+      info "The target subnet is $subnet and your's is $local_subnets. Gotta check up on that."
+
       exit 1
     fi
   else
     info "The target is a single host, checking if it's reachable."
 
     # Send a single ping request and check whether it succeeded
-    if ! ping -c 1 -W "$PINGOUT" "$TARGET" | grep -q bytes; then
-      error "The target $TARGET is not reachable. Please check the address and try again."
-      exit 1
+    if ping -c 1 -W "${PINGOUT:-$DEFAULT_PINGOUT}" "$target" >/dev/null 2>&1; then
+      success "The target $target is reachable. Proceeding with recon."
     else
-      success "The target $TARGET is reachable. Proceeding with recon."
+      error "The target $target is not reachable. Please check the address and try again."
+      exit 1
     fi
   fi
+
+  TARGET="$target"
 }
+
+# Checks that the ping timeout is a positive integer
+validate_pingout() {
+  local pingout="$1"
+
+  # Use a sane timeout range for reachability checks
+  if is_positive_integer "$pingout"; then
+    success "Updated ping timeout: $pingout seconds."
+
+    PINGOUT="$pingout"
+  else
+    error "Please choose a positive number for the ping timeout!"
+    info "Using default value of 10 seconds!"
+  fi
+}
+
+# Validate output path before they reach filesystem commands
+# Clears control chars
+validate_output() {
+  local output="$1"
+
+  if contains_control_chars "$output"; then
+    error "The output directory contains unsupported control characters."
+    exit 1
+  fi
+
+  success "Updated output directory: $output."
+  info "Let's hope nothing breaks..."
+
+  OUTPUT="$output"
+}
+
+# Basically the same check as the function above
+# Could be merged but I want to keep them separate for better error messages and future flexibility
+validate_project_name() {
+  local project_name="$1"
+
+  if contains_control_chars "$project_name"; then
+    error "The project name contains unsupported control characters."
+    exit 1
+  fi
+
+  success "Updated project name: $project_name."
+  info "Let's hope nothing breaks..."
+
+  PROJECT_NAME="$project_name"
+}
+
+
+

@@ -3,8 +3,6 @@
 # This script handles system checks and dependencies
 # ---------------------------------------------------------------------
 
-source modules/helpers.sh
-
 MANAGER=""
 
 # Detect which supported package manager is available on the host

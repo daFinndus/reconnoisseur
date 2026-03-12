@@ -4,9 +4,11 @@
 # ---------------------------------
 
 # Source all modules
+source modules/config.sh
 source modules/helpers.sh
 source modules/init.sh
 source modules/parser.sh
+source modules/target.sh
 source modules/system.sh
 source modules/ports.sh
 
@@ -17,10 +19,7 @@ check_help "$1"
 step "Welcome to Reconnoisseur - Your automated recon toolkit."
 
 # Parse command-line arguments
-check_vars "$@"
-
-# Validate the provided values
-validate_vars
+check_vars_undependent "$@"
 
 # Check terminal colors
 check_colors
@@ -30,6 +29,9 @@ check_pkg_manager
 
 # Validate required tools
 check_pkgs
+
+# Now also validate all variables that depend on the previous checks
+validate_vars_dependent
 
 # Validate the target and check if it's alive
 validate_target

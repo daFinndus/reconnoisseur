@@ -3,10 +3,6 @@
 # This script handles port scanning
 # --------------------------------
 
-source modules/helpers.sh
-source modules/init.sh
-source modules/parser.sh
-
 # This will replace slashes, colons, whitespaces and any other dangerous chars
 sanitize_scan_name() {
     local value="$1"
@@ -19,14 +15,14 @@ sanitize_scan_name() {
     printf '%s' "$value"
 }
 
-NAME=""
-
 # Scan the target for open ports and save the results
 portscan() {
+    local output_name=""
+
     step "Proceeding with the port scan!"
 
-    NAME=$(sanitize_scan_name "$TARGET")
-    info "Using $NAME as the output name for $TARGET."
+    output_name=$(sanitize_scan_name "$TARGET")
+    info "Using $output_name as the output name for $TARGET."
 
     # Create a dedicated directory for nmap output
     mkdir -p "$WORKSPACE/nmap"
@@ -36,13 +32,13 @@ portscan() {
     info "Doing an nmap scan on $TARGET now..."
 
     # Set the output directory
-    local output="$WORKSPACE/nmap/$NAME"
+    local output_directory="$WORKSPACE/nmap/$output_name"
 
     if [[ "$SUBNET" == "true" ]]; then
         info "Subnet mode is enabled, so the scan will discover live hosts and then scan each of them."
-        scan_subnet_hosts "$output" || return 1
+        scan_subnet_hosts "$output_directory" || return 1
     else
-        scan_host_ports "$output" "$TARGET" || return 1
+        scan_host_ports "$output_directory" "$TARGET" || return 1
     fi
 
     success "Port scanning finished. Results are stored in $WORKSPACE/nmap."
@@ -122,7 +118,7 @@ run_service_scan() {
     fi
 
     # Add a newline for better formatting
-    printf '\f'
+    printf '\n'
 
     success "Saved service detection results to $output-service.nmap, .gnmap and .xml."
 }
@@ -151,7 +147,7 @@ scan_subnet_hosts() {
     printf '%s\n' "${hosts[@]}" > "$hosts_file"
 
     # Add a newline for better formatting
-    printf '\f'
+    printf '\n'
 
     success "Discovered ${#hosts[@]} live host(s). Saved the list to $hosts_file."
 
@@ -174,9 +170,7 @@ run_nmap_scan() {
     # cmd is an array of commands, that's the -a flag
     local -a cmd=(nmap)
 
-    if [[ "$VERBOSE" == "true" ]]; then
-        cmd+=(-v)
-    fi
+    [ "$VERBOSE" == "true" ] && cmd+=(-v)
 
     cmd+=("$@" -oA "$output")
 
@@ -189,20 +183,20 @@ run_nmap_scan() {
 extract_ports() {
     local gnmap_file="$1"
 
-    awk -F'Ports: ' '/Ports: / {
-        split($2, entries, ", ")
-
-        for (i in entries) {
-            split(entries[i], fields, "/")
-
-            if (fields[2] == "open") {
-                print fields[1]
+    awk -F'Ports: ' '
+        /Ports: / {
+            n = split($2, entries, ", ")
+            for (i = 1; i <= n; i++) {
+                split(entries[i], fields, "/")
+                if (fields[2] == "open") {
+                    print fields[1]
+                }
             }
         }
-    }' "$gnmap_file" | sort -n -u | paste -sd, -
+    ' "$gnmap_file" | sort -n -u | paste -sd, -
 }
 
-# This function will grap all running hosts
+# This function will grab all running hosts
 extract_live_hosts() {
     local gnmap_file="$1"
 
