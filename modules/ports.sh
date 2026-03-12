@@ -174,8 +174,6 @@ run_nmap_scan() {
 
 	cmd+=("$@" -oA "$output")
 
-	info "Running: ${cmd[*]}\n"
-
 	"${cmd[@]}"
 }
 
