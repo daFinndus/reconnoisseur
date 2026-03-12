@@ -33,9 +33,6 @@ check_pkgs
 # Now also validate all variables that depend on the previous checks
 check_vars_dependent "$@"
 
-# Validate the target and check if it's alive
-validate_target
-
 # Prepare the workspace
 init_workspace
 

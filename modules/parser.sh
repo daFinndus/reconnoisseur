@@ -154,7 +154,7 @@ validate_target() {
       SUBNET=true
     else
       error "Please make sure you are in the same subnet as the target."
-      info "The target subnet is $subnet and your's is $local_subnets. Gotta check up on that."
+      info "The target subnet is $subnet and yours is $local_subnets. Gotta check up on that."
 
       exit 1
     fi
