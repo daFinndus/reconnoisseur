@@ -55,6 +55,8 @@ check_required_vars() {
 
 # Parse command-line arguments into global variables
 check_vars_undependent() {
+	local -a required_vars=("-t" "--target")
+
 	while [[ "$#" -gt 0 ]]; do
 		case $1 in
 		-pt | --pingout)
@@ -95,8 +97,16 @@ check_vars_undependent() {
 			exit 1
 			;;
 		*)
-			error "Unknown parameter passed: $1."
-			exit 1
+			# Check if it's a required variable
+			# Required vars will throw an error otherwise
+			# Do not exit on these
+			if [[ " ${required_vars[*]} " == *" $1 "* ]]; then
+				continue
+			else
+				error "Unknown parameter passed: $1."
+				exit 1
+			fi
+
 			;;
 		esac
 		shift
