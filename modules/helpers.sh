@@ -5,12 +5,12 @@
 
 # Set up colors for readable log output
 readonly COLORS=(
-  RED="\e[31m"
-  GREEN="\e[32m"
-  YELLOW="\e[33m"
-  BLUE="\e[34m"
-  CYAN="\e[36m"
-  RESET="\e[0m"
+  "\e[31m" # Red for errors
+  "\e[33m" # Yellow for warnings
+  "\e[32m" # Green for success
+  "\e[34m" # Blue for info
+  "\e[35m" # Magenta for steps
+  "\e[0m"  # Reset color
 )
 
 # Return the current time for log message prefixes
@@ -47,7 +47,7 @@ success() {
 
 # Print a warning log message
 warn() {
-  echo -e "${COLORS[2]}[$(timestamp)] ${COLORS[-1]}$1"
+  echo -e "${COLORS[1]}[$(timestamp)] ${COLORS[-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 0.5s
@@ -56,7 +56,7 @@ warn() {
 
 # Print an error log message and pause so it stays visible
 error() {
-  echo -e "${COLORS[1]}[$(timestamp)] ${COLORS[-1]}$1"
+  echo -e "${COLORS[0]}[$(timestamp)] ${COLORS[-1]}$1"
   
   if [[ "$DELAY" == "true" ]]; then
     sleep 1.5s
