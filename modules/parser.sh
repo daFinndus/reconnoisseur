@@ -45,6 +45,11 @@ check_required_vars() {
 		esac
 		shift
 	done
+
+	if ! $target_set; then
+		error "The target is required but was not provided. Please specify a target using -t or --target."
+		exit 1
+	fi
 }
 
 # Parse command-line arguments into global variables
