@@ -15,14 +15,16 @@ source modules/ports.sh
 # Check for help before doing anything else
 check_help "$1"
 
+# Then parse the rest of the arguments
+parse_args "$@"
+
 # Show the welcome message
 step "Welcome to Reconnoisseur - Your automated recon toolkit."
 
-# Check for required variables before doing anything else
-check_required_vars "$@"
-
-# Parse command-line arguments
-check_vars_undependent "$@"
+# Validate all args not depending on other packages
+validate_pingout
+validate_output
+validate_project_name
 
 # Check terminal colors
 check_colors
@@ -33,8 +35,8 @@ check_pkg_manager
 # Validate required tools
 check_pkgs
 
-# Now also validate all variables that depend on the previous checks
-check_vars_dependent "$@"
+# Validate the target
+validate_target
 
 # Prepare the workspace
 init_workspace

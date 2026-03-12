@@ -33,35 +33,18 @@ check_help() {
 	fi
 }
 
-# This function will check for required variables
-check_required_vars() {
-	local target=false
-
+# Parse command-line arguments into global variables
+parse_args() {
 	while [[ "$#" -gt 0 ]]; do
 		case $1 in
 		-t | --target)
-			target=true
+			require_value "$1" "${2-}"
+			TARGET="$2"
 			shift
 			;;
-		esac
-		shift
-	done
-
-	if ! $target; then
-		error "The target is required but was not provided."
-		exit 1
-	fi
-}
-
-# Parse command-line arguments into global variables
-check_vars_undependent() {
-	local -a required_vars=("-t" "--target")
-
-	while [[ "$#" -gt 0 ]]; do
-		case $1 in
 		-pt | --pingout)
 			require_value "$1" "${2-}"
-			validate_pingout "$2"
+			PINGOUT="$2"
 			shift
 			;;
 		-fp | --full-ports)
@@ -75,7 +58,7 @@ check_vars_undependent() {
 			;;
 		-o | --output)
 			require_value "$1" "${2-}"
-			validate_output "$2"
+			OUTPUT="$2"
 			shift
 			;;
 		-ncc | --no-color-check)
@@ -83,7 +66,7 @@ check_vars_undependent() {
 			;;
 		-pn | --project-name)
 			require_value "$1" "${2-}"
-			validate_project_name "$2"
+			PROJECT_NAME="$2"
 			shift
 			;;
 		-v | --verbose)
@@ -97,24 +80,8 @@ check_vars_undependent() {
 			exit 1
 			;;
 		*)
-			if [[ ! " ${required_vars[*]} " =~ " $1 " ]]; then
-				error "Unknown parameter passed: $1."
-				exit 1
-			fi
-			;;
-		esac
-		shift
-	done
-}
-
-# This is for vars that depend on packages
-check_vars_dependent() {
-	while [[ "$#" -gt 0 ]]; do
-		case $1 in
-		-t | --target)
-			require_value "$1" "${2-}"
-			validate_target "$2"
-			shift
+			error "Unknown parameter passed: $1."
+			exit 1
 			;;
 		esac
 		shift
@@ -135,8 +102,6 @@ require_value() {
 # Verify the target is reachable before recon begins
 # Checks for single host or subnet, sanitizes the target, checks reachability
 validate_target() {
-	local target="$1"
-
 	# This stores the specified subnet and local subnets of the host
 	local subnet=""
 	local -a local_subnets=()
@@ -144,25 +109,22 @@ validate_target() {
 	step "Validating the target now..."
 
 	# Validate the target before any network checks run
-	if [[ -z "$target" ]]; then
-		error "The target wasn't provided!"
-		exit 1
-	elif [[ "$target" =~ [[:space:]] ]]; then
+	if [[ "$TARGET" =~ [[:space:]] ]]; then
 		error "The target must not contain whitespace."
 		exit 1
-	elif contains_control_chars "$target"; then
+	elif contains_control_chars "$TARGET"; then
 		error "The target contains unsupported control characters."
 		exit 1
-	elif ! is_valid_target "$target"; then
+	elif ! is_valid_target "$TARGET"; then
 		error "The target must be a valid IPv4 address, hostname, or IPv4 CIDR range."
 		exit 1
 	fi
 
-	success "Target $target looks good, let's see if it's reachable."
+	success "Target $TARGET looks good, let's see if it's reachable."
 
 	step "Checking reachability of the target..."
 
-	if [[ "$target" == *"/"* ]]; then
+	if [[ "$TARGET" == *"/"* ]]; then
 		info "Seems you are using a subnet, checking compatibility..."
 
 		IFS=' ' read -r -a local_subnets <<<"$(ip route | grep -F '/' | awk '{print $1}')"
@@ -170,7 +132,7 @@ validate_target() {
 		info "Found the following local subnets: ${local_subnets[*]}."
 
 		# Compare the target network with the local network
-		subnet=$(ipcalc -n "$target" | awk '/Network/ {print $2}')
+		subnet=$(ipcalc -n "$TARGET" | awk '/Network/ {print $2}')
 
 		if [[ " ${local_subnets[*]} " == *" $subnet "* ]]; then
 			success "You are in the same subnet as the provided target, good job!"
@@ -186,60 +148,60 @@ validate_target() {
 		info "The target is a single host, checking if it's reachable."
 
 		# Send a single ping request and check whether it succeeded
-		if ping -c 1 -W "${PINGOUT:-$DEFAULT_PINGOUT}" "$target" >/dev/null 2>&1; then
-			success "The target $target is reachable. Proceeding with recon."
+		if ping -c 1 -W "${PINGOUT:-$DEFAULT_PINGOUT}" "$TARGET" >/dev/null 2>&1; then
+			success "The target $TARGET is reachable. Proceeding with recon."
 		else
-			error "The target $target is not reachable. Please check the address and try again."
+			error "The target $TARGET is not reachable. Please check the address and try again."
 			exit 1
 		fi
 	fi
-
-	TARGET="$target"
 }
 
 # Checks that the ping timeout is a positive integer
 validate_pingout() {
-	local pingout="$1"
+	if [[ -z "$PINGOUT" ]]; then
+		info "No ping timeout specified, using default value of 10 seconds."
+	elif is_positive_integer "$PINGOUT"; then
+		success "Updated ping timeout: $PINGOUT seconds."
 
-	# Use a sane timeout range for reachability checks
-	if is_positive_integer "$pingout"; then
-		success "Updated ping timeout: $pingout seconds."
-
-		PINGOUT="$pingout"
+		return
 	else
 		error "Please choose a positive number for the ping timeout!"
 		info "Using default value of 10 seconds!"
 	fi
+
+	PINGOUT="$DEFAULT_PINGOUT"
 }
 
 # Validate output path before they reach filesystem commands
 # Clears control chars
 validate_output() {
-	local output="$1"
+	if [[ -z "$OUTPUT" ]]; then
+		info "No output directory specified, using default value 'output'."
 
-	if contains_control_chars "$output"; then
+		OUTPUT="$DEFAULT_OUTPUT"
+		return
+	elif contains_control_chars "$OUTPUT"; then
 		error "The output directory contains unsupported control characters."
 		exit 1
 	fi
 
-	success "Updated output directory: $output."
+	success "Updated output directory: $OUTPUT."
 	info "Let's hope nothing breaks..."
-
-	OUTPUT="$output"
 }
 
 # Basically the same check as the function above
 # Could be merged but I want to keep them separate for better error messages and future flexibility
 validate_project_name() {
-	local project_name="$1"
+	if [[ -z "$PROJECT_NAME" ]]; then
+		info "No project name specified, will ask for it during workspace initialization."
 
-	if contains_control_chars "$project_name"; then
+		return
+	elif contains_control_chars "$PROJECT_NAME"; then
 		error "The project name contains unsupported control characters."
 		exit 1
 	fi
 
-	success "Updated project name: $project_name."
+	success "Updated project name: $PROJECT_NAME."
 	info "Let's hope nothing breaks..."
-
-	PROJECT_NAME="$project_name"
 }
