@@ -21,7 +21,7 @@ print_help() {
 	echo -e "\t-ncc, --no-color-check\tDisable color support check, save some time."
 	echo -e "\t-pn, --project-name\tSpecify the project name, skip whole init section."
 	echo -e "\t-v, --verbose\t\tEnable verbose logging."
-	echo -e "\t-nd, --no-delay\t\tDisable the delay after chat messages for clarity, will improve speed."
+	echo -e "\t-nd, --no-delay\t\tDisable the delay after chat messages."
 	echo -e "\nExample: $0 -t 10.10.0.10 -pt 15 -v"
 }
 
@@ -33,21 +33,22 @@ check_help() {
 	fi
 }
 
+# This function will check for required variables
 check_required_vars() {
-	local target_set=false
+	local target=false
 
 	while [[ "$#" -gt 0 ]]; do
 		case $1 in
 		-t | --target)
-			target_set=true
+			target=true
 			shift
 			;;
 		esac
 		shift
 	done
 
-	if ! $target_set; then
-		error "The target is required but was not provided. Please specify a target using -t or --target."
+	if ! $target; then
+		error "The target is required but was not provided."
 		exit 1
 	fi
 }

@@ -8,8 +8,8 @@ readonly COLORS=(
 	"\e[31m" # Red for errors
 	"\e[33m" # Yellow for warnings
 	"\e[32m" # Green for success
-	"\e[34m" # Blue for info
-	"\e[35m" # Magenta for steps
+	"\e[34m" # Blue for steps
+	"\e[36m" # Cyan for info
 	"\e[0m"  # Reset color
 )
 
@@ -20,7 +20,7 @@ timestamp() {
 
 # Print a primary step message and pause briefly for readability
 step() {
-	echo -e "\n${COLORS[4]}[$(timestamp)] ${COLORS[-1]}$1"
+	echo -e "\n${COLORS[3]}[$(timestamp)] ${COLORS[-1]}$1"
 
 	if [[ "$DELAY" == "true" ]]; then
 		sleep 1s
@@ -29,7 +29,7 @@ step() {
 
 # Print an informational log message
 info() {
-	echo -e "${COLORS[3]}[$(timestamp)] ${COLORS[-1]}$1"
+	echo -e "${COLORS[4]}[$(timestamp)] ${COLORS[-1]}$1"
 
 	if [[ "$DELAY" == "true" ]]; then
 		sleep 0.5s
