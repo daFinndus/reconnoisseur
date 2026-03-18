@@ -42,6 +42,7 @@ def check_pkgs(settings: Settings) -> None:
 
         if not settings.yes:
             answer = input(f"[{timestamp()}] Do you want to install {pkg}? (y/n) ")
+            
             if answer != "y":
                 error(f"Package {pkg} is required. Exiting.")
                 raise SystemExit(1)

@@ -30,6 +30,7 @@ def portscan(settings: Settings) -> bool:
 
     if settings.subnet:
         info("Subnet mode is enabled, so the scan will discover live hosts and then scan each of them.")
+        
         if not scan_subnet_hosts(settings, output_directory):
             return False
     else:
@@ -44,6 +45,7 @@ def portscan(settings: Settings) -> bool:
 def scan_host_ports(settings: Settings, output: str, host: str) -> bool:
     if not settings.yes:
         scan_confirm = input(f"[{timestamp()}] Do you wanna run a nmap scan on {host}? (y/n) ")
+        
         if scan_confirm != "y":
             info(f"Skipping {host} as requested.")
             return True
@@ -52,11 +54,13 @@ def scan_host_ports(settings: Settings, output: str, host: str) -> bool:
 
     if settings.full_port_scan:
         info(f"Scanning all TCP ports on {host}. This may take a while.")
+        
         if not run_nmap_scan(settings, output, "-Pn", "-p-", host):
             error(f"Port scan failed for {host}.")
             return False
     else:
         info(f"Scanning nmap's default top 1000 TCP ports on {host}.")
+        
         if not run_nmap_scan(settings, output, "-Pn", host):
             error(f"Port scan failed for {host}.")
             return False
@@ -90,6 +94,7 @@ def run_service_scan(settings: Settings, output: str, host: str, ports: str) -> 
 
     print()
     success(f"Saved service detection results to {output}-service.nmap, .gnmap and .xml.")
+    
     return True
 
 
@@ -99,11 +104,13 @@ def scan_subnet_hosts(settings: Settings, output: str) -> bool:
     hosts_file = Path(settings.workspace) / "nmap" / "hosts.log"
 
     info(f"Discovering live hosts inside {settings.target} first.")
+    
     if not run_nmap_scan(settings, output, "-sn", settings.target):
         error(f"Host discovery failed for {settings.target}.")
         return False
 
     hosts = extract_live_hosts(f"{output}.gnmap")
+    
     if not hosts:
         warn(f"No live hosts were discovered in {settings.target}.")
         return True
@@ -116,6 +123,7 @@ def scan_subnet_hosts(settings: Settings, output: str) -> bool:
     for host in hosts:
         octet = host.split(".")[-1]
         step(f"Scanning discovered host {host}")
+        
         if not scan_host_ports(settings, f"{output}-{octet}", host):
             return False
 
@@ -125,8 +133,10 @@ def scan_subnet_hosts(settings: Settings, output: str) -> bool:
 # Execute an nmap command with shared flags and output handling.
 def run_nmap_scan(settings: Settings, output: str, *args: str) -> bool:
     cmd = ["nmap"]
+    
     if settings.verbose:
         cmd.append("-v")
+        
     cmd.extend(args)
     cmd.extend(["-oA", output])
 
@@ -143,9 +153,12 @@ def extract_ports(gnmap_file: str) -> str:
             for line in handle:
                 if "Ports: " not in line:
                     continue
+                
                 port_blob = line.split("Ports: ", maxsplit=1)[1].strip()
+                
                 for entry in port_blob.split(", "):
                     fields = entry.split("/")
+                    
                     if len(fields) >= 2 and fields[1] == "open" and fields[0].isdigit():
                         ports.add(int(fields[0]))
     except FileNotFoundError:
@@ -163,7 +176,9 @@ def extract_live_hosts(gnmap_file: str) -> list[str]:
             for line in handle:
                 if "Status: Up" not in line:
                     continue
+                
                 fields = line.split()
+                
                 if len(fields) >= 2:
                     hosts.append(fields[1])
     except FileNotFoundError:
