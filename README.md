@@ -1,6 +1,6 @@
 # Reconnoisseur
 
-Reconnoisseur is a modular Bash-based reconnaissance toolkit. It validates a target, prepares a workspace, checks and installs required tools, runs an initial port scan, and optionally performs service detection — all from a single command.
+Reconnoisseur is a modular Python-based reconnaissance toolkit. It validates a target, prepares a workspace, checks and installs required tools, runs an initial port scan, and optionally performs service detection from a single command.
 
 ## Disclaimer
 
@@ -8,7 +8,7 @@ Use this project only against systems and networks you own or are explicitly aut
 
 ## Requirements
 
-- Bash
+- Python 3.10+
 - `nmap`
 - `ffuf`
 - `ipcalc`
@@ -29,37 +29,37 @@ cd reconnoisseur
 Show the built-in help:
 
 ```bash
-./reconnoisseur.sh --help
+python3 reconnoisseur.py --help
 ```
 
 Run a basic scan against a single host:
 
 ```bash
-sudo ./reconnoisseur.sh -t 10.10.0.10
+sudo python3 reconnoisseur.py -t 10.10.0.10
 ```
 
 Run with a custom ping timeout and verbose logging:
 
 ```bash
-sudo ./reconnoisseur.sh -t example.com -pt 15 -v
+sudo python3 reconnoisseur.py -t example.com -pt 15 -v
 ```
 
 Run a full TCP sweep and skip service detection:
 
 ```bash
-sudo ./reconnoisseur.sh -t 10.10.0.10 -fp -nss
+sudo python3 reconnoisseur.py -t 10.10.0.10 -fp -nss
 ```
 
 Scan a subnet (must be on the same local network):
 
 ```bash
-sudo ./reconnoisseur.sh -t 10.10.0.0/24
+sudo python3 reconnoisseur.py -t 10.10.0.0/24
 ```
 
 Skip all confirmation prompts and specify a project name upfront:
 
 ```bash
-sudo ./reconnoisseur.sh -t 10.10.0.10 -y -pn my-project
+sudo python3 reconnoisseur.py -t 10.10.0.10 -y -pn my-project
 ```
 
 ## Options
@@ -80,14 +80,16 @@ sudo ./reconnoisseur.sh -t 10.10.0.10 -y -pn my-project
 ## Project Structure
 
 ```
-reconnoisseur.sh          Entry point and main workflow
+reconnoisseur.py          Entry point and main workflow
 modules/
-  helpers.sh              Colored logging functions (step, info, success, warn, error)
-  init.sh                 Workspace directory setup
-  parser.sh               CLI argument parsing, input validation, and target reachability
-  ports.sh                Port scanning, service detection, and subnet host discovery
-  system.sh               Package manager detection and dependency verification
-  web-enumeration.sh      Web enumeration (planned)
+  config.py               Runtime settings and defaults
+  helpers.py              Colored logging functions (step, info, success, warn, error)
+  init.py                 Workspace directory setup
+  parser.py               CLI argument parsing, input validation, and target reachability
+  ports.py                Port scanning, service detection, and subnet host discovery
+  system.py               Package manager detection and dependency verification
+  target.py               Target format validators for IPv4, hostnames, and CIDR
+  web_enumeration.py      Web enumeration (planned)
 ```
 
 ## What The Script Does
