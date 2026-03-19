@@ -140,6 +140,9 @@ def run_nmap_scan(settings: Settings, output: str, *args: str) -> bool:
     cmd.extend(args)
     cmd.extend(["-oA", output])
 
+    # Print newline so the nmap scan is presented clearly
+    print()
+
     result = subprocess.run(cmd, check=False)
     return result.returncode == 0
 
