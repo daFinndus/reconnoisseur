@@ -3,3 +3,6 @@ output
 
 # Also ignore wordlists in workspace
 workspace
+
+# Ignore pycache under modules 
+modules/__pycache__

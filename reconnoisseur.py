@@ -24,7 +24,7 @@ def main(argv: list[str]) -> int:
     check_help(argv)
     parse_args(argv, SETTINGS)
 
-    step("Welcome to Reconnoisseur - Your automated recon toolkit.")
+    step("Welcome to Reconnoisseur - Your automated recon toolkit.\n")
 
     validate_pingout(SETTINGS)
     validate_output(SETTINGS)
