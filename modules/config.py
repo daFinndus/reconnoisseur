@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import os
+from pathlib import Path
 
-DEFAULT_OUTPUT = "output"
+# Find out where the repository is located.
+repo_path = Path(__file__).parent.parent
+os.chdir(repo_path)
+
+DEFAULT_OUTPUT = f"{repo_path}/output"
 DEFAULT_PINGOUT = 10
 
 

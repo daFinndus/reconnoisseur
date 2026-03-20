@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import subprocess
 import sys
 
@@ -8,85 +9,111 @@ from modules.helpers import contains_control_chars, error, info, is_positive_int
 from modules.target import is_valid_target
 
 
-# Print CLI usage information.
-def print_help(prog: str) -> None:
-    print("Reconnoisseur v1.0.0 (https://github.com/daFinndus/reconnoisseur)")
-    print(f"\nUsage: {prog} [options]")
-
-    print("\nOptions:")
-    print("\t-t, --target\t\tTarget domain or IP address.")
-    print("\t-pt, --pingout\t\tTimeout for host reachability check in seconds (default: 10).")
-    print("\t-fp, --full-ports\tScan all 65535 TCP ports instead of the default top 1000.")
-    print("\t-nss, --no-service-scan\tSkip the follow-up service detection scan.")
-    print("\t-y, --yes\t\tSkip all confirmation prompts, use with caution!")
-    print()
-    print("\t-o, --output\t\tSpecify a custom output directory for all results.")
-    print()
-    print("\t-ncc, --no-color-check\tDisable color support check, save some time.")
-    print("\t-pn, --project-name\tSpecify the project name, skip whole init section.")
-    print("\t-v, --verbose\t\tEnable verbose logging.")
-    print("\t-nd, --no-delay\t\tDisable the delay after chat messages.")
-    print(f"\nExample: {prog} -t 10.10.0.10 -pt 15 -v")
-
-
-# Exit early when help is requested as the only argument.
-def check_help(argv: list[str]) -> None:
-    if len(argv) == 1 and argv[0] in {"-h", "--help"}:
-        print_help(sys.argv[0])
-        raise SystemExit(0)
-
-
-# Ensure options that require a value actually received one.
-def require_value(name: str, value: str | None) -> str:
-    if not value:
-        error(f"Option {name} requires a value.")
+class ReconArgParser(argparse.ArgumentParser):
+    # Route parser errors through project logging helpers for consistent UX.
+    def error(self, message: str) -> None:
+        error(message)
         raise SystemExit(1)
-    
-    return value
+
+
+def build_parser(prog: str) -> argparse.ArgumentParser:
+    parser = ReconArgParser(
+        prog=prog,
+        description="Reconnoisseur v1.0.0 (https://github.com/daFinndus/reconnoisseur)",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # This is target related
+    target_group = parser.add_argument_group("Target")
+    target_group.add_argument(
+        "-t",
+        required=True,
+        dest="target",
+        metavar="HOST or SUBNET",
+        help="Target IPv4, hostname, or IPv4 CIDR range.",
+    )
+    target_group.add_argument(
+        "-pt",
+        dest="pingout",
+        metavar="SECONDS",
+        help="Host reachability timeout in seconds (validation fallback: 10).",
+    )
+
+    # This is related to the nmap scan
+    scan_group = parser.add_argument_group("Scan Behavior")
+    scan_group.add_argument(
+        "-fp",
+        dest="full_ports",
+        action="store_true",
+        help="Scan all 65535 TCP ports (default: top 1000).",
+    )
+    scan_group.add_argument(
+        "-nss",
+        dest="no_service_scan",
+        action="store_true",
+        help="Skip follow-up service detection scan.",
+    )
+    scan_group.add_argument(
+        "-y",
+        dest="yes",
+        action="store_true",
+        help="Skip confirmation prompts.",
+    )
+
+    # This is for the project and output configuration
+    output_group = parser.add_argument_group("Output and Project")
+    output_group.add_argument(
+        "-o",
+        dest="output",
+        metavar="DIR",
+        help="Custom output directory for results.",
+    )
+    output_group.add_argument(
+        "-pn",
+        dest="project_name",
+        metavar="NAME",
+        help="Project name; skips interactive init naming.",
+    )
+
+    # This modifies script behaviour
+    runtime_group = parser.add_argument_group("Runtime")
+    runtime_group.add_argument(
+        "-ncc",
+        dest="no_color_check",
+        action="store_true",
+        help="Disable color support check.",
+    )
+    runtime_group.add_argument(
+        "-v",
+        dest="verbose",
+        action="store_true",
+        help="Enable verbose logging.",
+    )
+    runtime_group.add_argument(
+        "-nd",
+        dest="no_delay",
+        action="store_true",
+        help="Disable chat message delay.",
+    )
+
+    return parser
 
 
 # Parse CLI arguments and update shared runtime settings.
 def parse_args(argv: list[str], settings: Settings) -> None:
-    i = 0
-    while i < len(argv):
-        arg = argv[i]
+    parser = build_parser(sys.argv[0])
+    args = parser.parse_args(argv)
 
-        if arg in {"-t", "--target"}:
-            settings.target = require_value(arg, argv[i + 1] if i + 1 < len(argv) else None)
-            i += 1
-        elif arg in {"-pt", "--pingout"}:
-            settings.pingout = require_value(arg, argv[i + 1] if i + 1 < len(argv) else None)
-            i += 1
-        elif arg in {"-fp", "--full-ports"}:
-            settings.full_port_scan = True
-        elif arg in {"-nss", "--no-service-scan"}:
-            settings.service_scan = False
-        elif arg in {"-y", "--yes"}:
-            settings.yes = True
-        elif arg in {"-o", "--output"}:
-            settings.output = require_value(arg, argv[i + 1] if i + 1 < len(argv) else None)
-            i += 1
-        elif arg in {"-ncc", "--no-color-check"}:
-            settings.color_check = False
-        elif arg in {"-pn", "--project-name"}:
-            settings.project_name = require_value(arg, argv[i + 1] if i + 1 < len(argv) else None)
-            i += 1
-        elif arg in {"-v", "--verbose"}:
-            settings.verbose = True
-        elif arg in {"-nd", "--no-delay"}:
-            settings.delay = False
-        elif arg in {"-h", "--help"}:
-            error("Help option detected, please run without additional arguments!")
-            raise SystemExit(1)
-        else:
-            error(f"Unknown parameter passed: {arg}.")
-            raise SystemExit(1)
-
-        i += 1
-
-    if not settings.target:
-        error("The target is required but was not provided. Specify via -t.")
-        raise SystemExit(1)
+    settings.target = args.target
+    settings.pingout = args.pingout or ""
+    settings.full_port_scan = args.full_ports
+    settings.service_scan = not args.no_service_scan
+    settings.yes = args.yes
+    settings.output = args.output or ""
+    settings.color_check = not args.no_color_check
+    settings.project_name = args.project_name or ""
+    settings.verbose = args.verbose
+    settings.delay = not args.no_delay
 
 
 # Validate target syntax and then verify reachability.

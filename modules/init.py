@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from modules.config import DEFAULT_OUTPUT, Settings
@@ -28,11 +29,9 @@ def init_workspace(settings: Settings) -> None:
 
     step("Creating necessary directories...")
 
-    Path("output").mkdir(parents=True, exist_ok=True)
-    success("Made sure that the output directory exists.")
 
-    Path("wordlists").mkdir(parents=True, exist_ok=True)
-    success("Also made sure that the wordlists directory exists.")
+    Path(f"{settings.output or DEFAULT_OUTPUT}").mkdir(parents=True, exist_ok=True)
+    success("Made sure that the output directory exists.")
 
     if settings.project_name:
         info("Project name provided via CLI, creating workspace...")
@@ -60,4 +59,4 @@ def init_workspace(settings: Settings) -> None:
     workspace.mkdir(parents=True, exist_ok=True)
     
     success("Workspace created!")
-    info(f"The output directory for this project lies in {settings.workspace}.")
+    info(f"The output directory for this project lies in {settings.output or DEFAULT_OUTPUT}.")

@@ -93,7 +93,7 @@ def run_service_scan(settings: Settings, output: str, host: str, ports: str) -> 
         return False
 
     print()
-    success(f"Saved service detection results to {output}-service.nmap, .gnmap and .xml.")
+    success(f"Saved service detection results to .nmap, .gnmap and .xml.")
     
     return True
 
