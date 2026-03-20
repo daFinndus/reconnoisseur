@@ -1,3 +1,7 @@
 {
-  "shellformat.path": "C:\\bin\\shfmt.exe"
+  "editor.formatOnSave": true,
+  "pythonIndent.trimLinesWithOnlyWhitespace": false,
+  "pythonIndent.useTabOnHangingIndent": false,
+  "pythonIndent.keepHangingBracketOnLine": false,
+  "python.analysis.autoImportCompletions": true
 }

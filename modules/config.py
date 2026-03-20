@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import os
 from pathlib import Path
 
 # Find out where the repository is located.
-repo_path = Path(__file__).parent.parent
-os.chdir(repo_path)
+repo_path = Path(__file__).resolve().parent.parent
 
 DEFAULT_OUTPUT = f"{repo_path}/output"
 DEFAULT_PINGOUT = 10
@@ -26,6 +24,7 @@ class Settings:
     pingout: str = ""
     delay: bool = True
     color_check: bool = True
+    save: bool = True
     yes: bool = False
     manager: str = ""
 

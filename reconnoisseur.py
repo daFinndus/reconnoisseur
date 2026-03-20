@@ -7,59 +7,55 @@ import sys
 from modules.config import SETTINGS
 from modules.helpers import step, error
 from modules.init import check_colors, init_workspace
-from modules.nmap import portscan
+from modules.nmap import Nmap
 from modules.web_enumeration import extract_webserver
 from modules.system import check_pkg_manager, check_pkgs
-from modules.parser import (
-    parse_args,
-    validate_output,
-    validate_pingout,
-    validate_project_name,
-    validate_target,
-)
+from modules.target import validate_target
+from modules.parser import parse_args
 
 
 # Run the full recon workflow from parsed CLI arguments.
 def main(argv: list[str]) -> int:
-    try: 
-        parse_args(argv, SETTINGS)
+    parse_args(argv, SETTINGS)
 
-        step("Welcome to Reconnoisseur - Your automated recon toolkit.\n")
+    step("Welcome to Reconnoisseur - Your automated recon toolkit.")
 
-        validate_pingout(SETTINGS)
-        validate_output(SETTINGS)
-        validate_project_name(SETTINGS)
+    check_colors(SETTINGS)
+    check_pkg_manager(SETTINGS)
+    check_pkgs(SETTINGS)
 
-        check_colors(SETTINGS)
-        check_pkg_manager(SETTINGS)
-        check_pkgs(SETTINGS)
+    validate_target(SETTINGS)
 
-        validate_target(SETTINGS)
+    if SETTINGS.save:
         init_workspace(SETTINGS)
 
+    nmap = Nmap(SETTINGS)
 
-        if not portscan(SETTINGS):
-            return 1
-        
-        extract_webserver(SETTINGS)
-
-        # TODO: Add Nmap XML parsing for web hints
-        # TODO: Build target URL candidates
-        # TODO: Implement web reachability check
-        # TODO: Detect hostname redirects
-        # TODO: Add safe hosts-file workflow
-        # TODO: Integrate ffuf pipeline
-        # TODO: Add result parsing and reporting
-        # TODO: Add CLI flags for web enum control
-        # TODO: Add error handling and prerequisites
-        # TODO: Add tests and sample fixtures
-    except KeyboardInterrupt:
-        print("\n")
-        error("Interrupted by user, exiting...")
+    if not nmap.portscan():
+        error("Port scanning failed, exiting.")
         return 1
+
+    # This will soon be implemented.
+    # extract_webserver(nmap.ports)
+
+    # TODO: Add Nmap XML parsing for web hints
+    # TODO: Build target URL candidates
+    # TODO: Implement web reachability check
+    # TODO: Detect hostname redirects
+    # TODO: Add safe hosts-file workflow
+    # TODO: Integrate ffuf pipeline
+    # TODO: Add result parsing and reporting
+    # TODO: Add CLI flags for web enum control
+    # TODO: Add error handling and prerequisites
+    # TODO: Add tests and sample fixtures
 
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    try:
+        raise SystemExit(main(sys.argv[1:]))
+    except KeyboardInterrupt:
+        print("\n")
+        error("Interrupted by user, exiting.")
+        raise SystemExit(1)

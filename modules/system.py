@@ -41,8 +41,8 @@ def check_pkgs(settings: Settings) -> None:
         warn(f"Package {pkg} is not installed. Installing...")
 
         if not settings.yes:
-            answer = input(f"[{timestamp()}] Do you want to install {pkg}? (y/n) ")
-            
+            answer = input(f"[{timestamp()}] Do you want to install {pkg}? (y/N) ")
+
             if answer != "y":
                 error(f"Package {pkg} is required. Exiting.")
                 raise SystemExit(1)
@@ -50,7 +50,12 @@ def check_pkgs(settings: Settings) -> None:
             warn(f"Skipping confirmation prompt, installing {pkg}!")
 
         if settings.manager == "apt":
-            subprocess.run(["sudo", "apt", "update"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(
+                ["sudo", "apt", "update"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
             subprocess.run(
                 ["sudo", "apt", "install", "-y", pkg],
                 stdout=subprocess.DEVNULL,
@@ -68,7 +73,9 @@ def check_pkgs(settings: Settings) -> None:
             )
 
         if not shutil.which(pkg):
-            error(f"Failed to install {pkg}. Please install it manually and re-run the script.")
+            error(
+                f"Failed to install {pkg}. Please install it manually and re-run the script."
+            )
             raise SystemExit(1)
 
         success(f"Package {pkg} installed successfully.")

@@ -1,8 +1,108 @@
 from __future__ import annotations
 
 import re
+import subprocess
 
-from modules.helpers import info
+from modules.config import Settings
+from modules.helpers import contains_control_chars, error, info, step, success
+
+
+# Validate target syntax and then verify reachability.
+# For CIDR targets this also confirms the host is in a compatible local subnet.
+def validate_target(settings: Settings) -> None:
+    step("Validating the target now...")
+
+    if any(character.isspace() for character in settings.target):
+        error("The target must not contain whitespaces.")
+        raise SystemExit(1)
+
+    if contains_control_chars(settings.target):
+        error("The target contains unsupported control characters.")
+        raise SystemExit(1)
+
+    if not is_valid_target(settings.target):
+        error("The target must be a valid IPv4 address, hostname, or IPv4 CIDR range.")
+        raise SystemExit(1)
+
+    success(f"Target {settings.target} looks good, let's see if it's reachable.")
+
+    step("Checking reachability of the target...")
+
+    if "/" in settings.target:
+        check_subnet_compatibility(settings)
+    else:
+        check_host_reachability(settings)
+
+
+def check_subnet_compatibility(settings: Settings) -> None:
+    info("Seems you are using a subnet, checking compatibility...")
+
+    route_result = subprocess.run(
+        ["ip", "route"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    # Check subnets the host is in
+    local_subnets = []
+
+    for line in route_result.stdout.splitlines():
+        first = line.split(maxsplit=1)[0] if line.split() else ""
+
+        if "/" in first:
+            local_subnets.append(first)
+
+    info(f"Found the following local subnets: {' '.join(local_subnets)}.")
+
+    # Check if the target is in any of the local subnets
+    ipcalc_result = subprocess.run(
+        ["ipcalc", "-n", settings.target],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    subnet = ""
+
+    for line in ipcalc_result.stdout.splitlines():
+        if "Network" in line:
+            fields = line.split()
+            subnet = fields[1] if fields else ""
+            break
+
+    if subnet in local_subnets:
+        success("You are in the same subnet as the provided target, good job!")
+        settings.subnet = True
+
+        return
+
+    error("Please make sure you are in the same subnet as the target.")
+    info(
+        f"The target subnet is {subnet} and yours is {' '.join(local_subnets)}. Gotta check up on that."
+    )
+
+    raise SystemExit(1)
+
+
+def check_host_reachability(settings: Settings) -> None:
+    info("The target is a single host, checking if it's reachable.")
+
+    ping_result = subprocess.run(
+        ["ping", "-c", "1", "-W", settings.pingout, settings.target],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+    if ping_result.returncode == 0:
+        success(f"The target {settings.target} is reachable. Proceeding with recon.")
+        return
+
+    error(
+        f"The target {settings.target} is not reachable. Please check the address and try again."
+    )
+    raise SystemExit(1)
 
 
 # Validate that a string is a properly ranged IPv4 address.
@@ -31,7 +131,10 @@ def is_valid_hostname(candidate: str) -> bool:
 def is_valid_target(candidate: str) -> bool:
     if "/" in candidate:
         address, prefix = candidate.rsplit("/", maxsplit=1)
-        info(f"Got address {address} and prefix {prefix} from the provided CIDR notation.")
+
+        info(
+            f"Got address {address} and prefix {prefix} from the provided CIDR notation."
+        )
 
         if not is_valid_ipv4(address):
             return False

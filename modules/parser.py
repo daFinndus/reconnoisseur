@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-import argparse
-import subprocess
 import sys
+import argparse
 
 from modules.config import DEFAULT_OUTPUT, DEFAULT_PINGOUT, Settings
-from modules.helpers import contains_control_chars, error, info, is_positive_integer, step, success
+from modules.helpers import (
+    contains_control_chars,
+    error,
+    info,
+    is_positive_integer,
+    step,
+    success,
+)
 from modules.target import is_valid_target
 
 
@@ -36,7 +42,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
         "-pt",
         dest="pingout",
         metavar="SECONDS",
-        help="Host reachability timeout in seconds (validation fallback: 10).",
+        help="Host reachability timeout in seconds (Validation fallback: 10).",
     )
 
     # This is related to the nmap scan
@@ -45,7 +51,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
         "-fp",
         dest="full_ports",
         action="store_true",
-        help="Scan all 65535 TCP ports (default: top 1000).",
+        help="Scan all 65535 TCP ports (Default: top 1000).",
     )
     scan_group.add_argument(
         "-nss",
@@ -78,16 +84,22 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
     # This modifies script behaviour
     runtime_group = parser.add_argument_group("Runtime")
     runtime_group.add_argument(
-        "-ncc",
-        dest="no_color_check",
+        "-ns",
+        dest="save",
         action="store_true",
-        help="Disable color support check.",
+        help="Disable saving the scan results, logs, etc. to the output.",
     )
     runtime_group.add_argument(
         "-v",
         dest="verbose",
         action="store_true",
         help="Enable verbose logging.",
+    )
+    runtime_group.add_argument(
+        "-ncc",
+        dest="no_color_check",
+        action="store_true",
+        help="Disable color support check.",
     )
     runtime_group.add_argument(
         "-nd",
@@ -104,140 +116,33 @@ def parse_args(argv: list[str], settings: Settings) -> None:
     parser = build_parser(sys.argv[0])
     args = parser.parse_args(argv)
 
+    # Check if pingout is a valid positive integer, if provided.
+    if args.pingout and not is_positive_integer(args.pingout):
+        error("The ping timeout must be a positive integer, using default.")
+        args.pingout = ""
+
+    # Check if output is valid, if provided.
+    if args.output and contains_control_chars(args.output):
+        error(
+            "The output directory contains unsupported control characters, using default."
+        )
+        args.output = ""
+
+    # Check if project name seems good, if provided.
+    if args.project_name and contains_control_chars(args.project_name):
+        error(
+            "The project name contains unsupported control characters, using default."
+        )
+        args.project_name = ""
+
     settings.target = args.target
-    settings.pingout = args.pingout or ""
+    settings.pingout = args.pingout or str(DEFAULT_PINGOUT)
     settings.full_port_scan = args.full_ports
     settings.service_scan = not args.no_service_scan
     settings.yes = args.yes
-    settings.output = args.output or ""
+    settings.output = args.output or str(DEFAULT_OUTPUT)
     settings.color_check = not args.no_color_check
     settings.project_name = args.project_name or ""
     settings.verbose = args.verbose
+    settings.save = not args.save
     settings.delay = not args.no_delay
-
-
-# Validate target syntax and then verify reachability.
-# For CIDR targets this also confirms the host is in a compatible local subnet.
-def validate_target(settings: Settings) -> None:
-    step("Validating the target now...")
-
-    if any(ch.isspace() for ch in settings.target):
-        error("The target must not contain whitespace.")
-        raise SystemExit(1)
-    
-    if contains_control_chars(settings.target):
-        error("The target contains unsupported control characters.")
-        raise SystemExit(1)
-    
-    if not is_valid_target(settings.target):
-        error("The target must be a valid IPv4 address, hostname, or IPv4 CIDR range.")
-        raise SystemExit(1)
-
-    success(f"Target {settings.target} looks good, let's see if it's reachable.")
-
-    step("Checking reachability of the target...")
-
-    if "/" in settings.target:
-        info("Seems you are using a subnet, checking compatibility...")
-
-        route_result = subprocess.run(
-            ["ip", "route"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        
-        # Check subnets the host is in
-        local_subnets = []
-        
-        for line in route_result.stdout.splitlines():
-            first = line.split(maxsplit=1)[0] if line.split() else ""
-            if "/" in first:
-                local_subnets.append(first)
-
-        info(f"Found the following local subnets: {' '.join(local_subnets)}.")
-
-        # Check if the target is in any of the local subnets
-        ipcalc_result = subprocess.run(
-            ["ipcalc", "-n", settings.target],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        
-        subnet = ""
-        
-        for line in ipcalc_result.stdout.splitlines():
-            if "Network" in line:
-                fields = line.split()
-                subnet = fields[-1] if fields else ""
-                break
-
-        if subnet in local_subnets:
-            success("You are in the same subnet as the provided target, good job!")
-            settings.subnet = True
-            return
-
-        error("Please make sure you are in the same subnet as the target.")
-        info(f"The target subnet is {subnet} and yours is {' '.join(local_subnets)}. Gotta check up on that.")
-        
-        raise SystemExit(1)
-
-    info("The target is a single host, checking if it's reachable.")
-    
-    ping_result = subprocess.run(
-        ["ping", "-c", "1", "-W", settings.pingout or str(DEFAULT_PINGOUT), settings.target],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
-    )
-    
-    if ping_result.returncode == 0:
-        success(f"The target {settings.target} is reachable. Proceeding with recon.")
-        return
-
-    error(f"The target {settings.target} is not reachable. Please check the address and try again.")
-    raise SystemExit(1)
-
-
-# Validate ping timeout and fall back to the default on invalid input.
-def validate_pingout(settings: Settings) -> None:
-    if not settings.pingout:
-        info("No ping timeout specified, using default value of 10 seconds.")
-    elif is_positive_integer(settings.pingout):
-        success(f"Updated ping timeout: {settings.pingout} seconds.")
-        return
-    else:
-        error("Please choose a positive number for the ping timeout!")
-        info("Using default value of 10 seconds!")
-
-    settings.pingout = str(DEFAULT_PINGOUT)
-
-
-# Validate the output path and apply the default when omitted.
-def validate_output(settings: Settings) -> None:
-    if not settings.output:
-        info("No output directory specified, using default value 'output'.")
-        settings.output = DEFAULT_OUTPUT
-        return
-    
-    if contains_control_chars(settings.output):
-        error("The output directory contains unsupported control characters.")
-        raise SystemExit(1)
-
-    success(f"Updated output directory: {settings.output}.")
-    info("Let's hope nothing breaks...")
-
-
-# Validate the optional project name before workspace creation.
-def validate_project_name(settings: Settings) -> None:
-    if not settings.project_name:
-        info("No project name specified, will ask for it during workspace initialization.")
-        return
-    
-    if contains_control_chars(settings.project_name):
-        error("The project name contains unsupported control characters.")
-        raise SystemExit(1)
-
-    success(f"Updated project name: {settings.project_name}.")
-    info("Let's hope nothing breaks...")
