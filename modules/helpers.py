@@ -2,19 +2,30 @@ from __future__ import annotations
 
 import re
 import time
+
 from datetime import datetime
 
 from modules.config import SETTINGS
 
 
 COLORS = [
-    "\033[31m",  # Red for errors
-    "\033[33m",  # Yellow for warnings
-    "\033[32m",  # Green for success
-    "\033[34m",  # Blue for steps
-    "\033[36m",  # Cyan for info
-    "\033[0m",   # Reset color
+    "\033[38;2;220;50;50m",
+    "\033[38;2;220;180;0m",
+    "\033[38;2;50;200;50m",
+    "\033[38;2;50;120;220m",
+    "\033[38;2;0;180;180m",
+    "\033[0m",
 ]
+
+
+# Return True if the value is a positive integer string.
+def is_positive_integer(value: str) -> bool:
+    return bool(re.fullmatch(r"[1-9][0-9]*", value))
+
+
+# Return True if the value includes control characters.
+def contains_control_chars(value: str) -> bool:
+    return any(ord(char) < 32 or ord(char) == 127 for char in value)
 
 
 # Return the current local time in HH:MM:SS format.
@@ -55,14 +66,4 @@ def warn(message: str) -> None:
 # Print an error message and pause slightly longer.
 def error(message: str) -> None:
     print(f"{COLORS[0]}[{timestamp()}] {COLORS[-1]}{message}")
-    _sleep(1.5)
-
-
-# Return True if the value is a positive integer string.
-def is_positive_integer(value: str) -> bool:
-    return bool(re.fullmatch(r"[1-9][0-9]*", value))
-
-
-# Return True if the value includes control characters.
-def contains_control_chars(value: str) -> bool:
-    return any(ord(char) < 32 or ord(char) == 127 for char in value)
+    _sleep(1.0)
