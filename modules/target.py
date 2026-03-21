@@ -77,10 +77,8 @@ def check_subnet_compatibility(settings: Settings) -> None:
 
         return
 
+    info(f"The target is in {subnet} and you're in {' '.join(local_subnets)}.")
     error("Please make sure you are in the same subnet as the target.")
-    info(
-        f"The target subnet is {subnet} and yours is {' '.join(local_subnets)}. Gotta check up on that."
-    )
 
     raise SystemExit(1)
 
@@ -132,9 +130,7 @@ def is_valid_target(candidate: str) -> bool:
     if "/" in candidate:
         address, prefix = candidate.rsplit("/", maxsplit=1)
 
-        info(
-            f"Got address {address} and prefix {prefix} from the provided CIDR notation."
-        )
+        info(f"Got address {address} and prefix {prefix} from the provided CIDR.")
 
         if not is_valid_ipv4(address):
             return False

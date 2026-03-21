@@ -8,6 +8,7 @@ from datetime import datetime
 from modules.config import SETTINGS
 
 
+# These colors are used for different message types to improve readability.
 COLORS = [
     "\033[38;2;220;50;50m",
     "\033[38;2;220;180;0m",

@@ -4,19 +4,11 @@ import sys
 import argparse
 
 from modules.config import DEFAULT_OUTPUT, DEFAULT_PINGOUT, Settings
-from modules.helpers import (
-    contains_control_chars,
-    error,
-    info,
-    is_positive_integer,
-    step,
-    success,
-)
-from modules.target import is_valid_target
+from modules.helpers import contains_control_chars, error, is_positive_integer
 
 
+# Route parser errors through project logging helpers for consistent UX.
 class ReconArgParser(argparse.ArgumentParser):
-    # Route parser errors through project logging helpers for consistent UX.
     def error(self, message: str) -> None:
         error(message)
         raise SystemExit(1)

@@ -19,9 +19,9 @@ class Nmap:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-        self.hosts = []  # This will hold discovered or the provided host.
-        self.ports: dict[str, str] = {}  # This will map open ports to the host(s).
-        self.services: dict[str, str] = {}  # This will map service info to the host(s).
+        self.hosts: list[str] = []  # This will hold discovered or the provided host.
+        # host -> {port -> detected service name (can be empty when unknown)}
+        self.ports: dict[str, dict[str, str]] = {}
 
         self.nmap_dir = Path("/tmp")
 
@@ -150,7 +150,8 @@ class Nmap:
         print()
 
         if self.ports.get(host):
-            success(f"Open TCP ports on {host}: {self.ports[host]}.")
+            ports = ",".join(sorted(self.ports[host], key=int))
+            success(f"Open TCP ports on {host}: {ports}.")
         else:
             warn(f"No open TCP ports found on {host}.")
 
@@ -169,7 +170,8 @@ class Nmap:
             info(f"Skipping service detection for {host}, disabled via CLI option.")
             return True
 
-        ports = self.ports.get(host, "")
+        host_ports = self.ports.get(host, {})
+        ports = ",".join(sorted(host_ports, key=int))
 
         if not ports:
             warn(f"Skipping service scan for {host}, no open TCP ports were found.")
@@ -182,6 +184,9 @@ class Nmap:
         if not self.run_nmap_scan(str(output_dir), *args):
             error(f"Service detection scan failed for {host}.")
             return False
+
+        # Parse service scan output to enrich port -> service mapping.
+        self.extract_ports(host, f"{str(output_dir)}.gnmap")
 
         print()
 
@@ -213,7 +218,7 @@ class Nmap:
 
     # Parse a .gnmap file and return unique open TCP ports as a comma-separated list.
     def extract_ports(self, host: str, gnmap_file: str) -> str:
-        ports: set[int] = set()
+        ports: dict[str, str] = {}
 
         if not self.settings.save:
             gnmap_file = f"/tmp/temporary.gnmap"
@@ -230,16 +235,16 @@ class Nmap:
                         fields = entry.split("/")
 
                         if (
-                            len(fields) >= 2
+                            len(fields) >= 5
                             and fields[1] == "open"
                             and fields[0].isdigit()
                         ):
-                            ports.add(int(fields[0]))
+                            ports[fields[0]] = fields[4]
         except FileNotFoundError:
             return ""
 
-        parsed_ports = ",".join(str(port) for port in sorted(ports))
-        self.ports[host] = parsed_ports
+        parsed_ports = ",".join(sorted(ports, key=int))
+        self.ports[host] = ports
         return parsed_ports
 
     # Parse a .gnmap file and return hosts marked as up.

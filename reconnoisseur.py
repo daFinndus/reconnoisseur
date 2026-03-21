@@ -8,7 +8,7 @@ from modules.config import SETTINGS
 from modules.helpers import step, error
 from modules.init import check_colors, init_workspace
 from modules.nmap import Nmap
-from modules.web_enumeration import extract_webserver
+from modules.web_enumeration import probe_web_services
 from modules.system import check_pkg_manager, check_pkgs
 from modules.target import validate_target
 from modules.parser import parse_args
@@ -20,15 +20,22 @@ def main(argv: list[str]) -> int:
 
     step("Welcome to Reconnoisseur - Your automated recon toolkit.")
 
-    check_colors(SETTINGS)
+    # Check for colors (or not).
+    if SETTINGS.color_check:
+        check_colors(SETTINGS)
+
+    # Retrieve the package manager and check for required packages.
     check_pkg_manager(SETTINGS)
     check_pkgs(SETTINGS)
 
+    # Check if the provided target is usable.
     validate_target(SETTINGS)
 
+    # Create a workspace (if file saving is enabled).
     if SETTINGS.save:
         init_workspace(SETTINGS)
 
+    # Create the Nmap instance and run the port scan.
     nmap = Nmap(SETTINGS)
 
     if not nmap.portscan():
@@ -36,7 +43,7 @@ def main(argv: list[str]) -> int:
         return 1
 
     # This will soon be implemented.
-    # extract_webserver(nmap.ports)
+    print(probe_web_services(nmap.ports))
 
     # TODO: Add Nmap XML parsing for web hints
     # TODO: Build target URL candidates

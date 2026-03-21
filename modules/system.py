@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import importlib.util
 
 from modules.config import Settings
 from modules.helpers import error, info, step, success, timestamp, warn
@@ -29,14 +30,21 @@ def check_pkg_manager(settings: Settings) -> None:
 # Ensure required tools exist and offer interactive installation when missing.
 # Installs with the detected package manager and fails fast if installation did not succeed.
 def check_pkgs(settings: Settings) -> None:
-    pkgs = ["nmap", "ffuf", "ipcalc"]
+    pkgs = ["nmap", "ffuf", "ipcalc", "python-requests", "python-urllib3"]
 
     step("Checking for required packages...")
 
     for pkg in pkgs:
-        if shutil.which(pkg):
-            success(f"Package {pkg} is installed.")
-            continue
+        if "python" in pkg:
+            pkg = pkg.replace("python-", "")
+
+            if importlib.util.find_spec(pkg) is not None:
+                success(f"Python package {pkg} is installed.")
+                continue
+        else:
+            if shutil.which(pkg):
+                success(f"Package {pkg} is installed.")
+                continue
 
         warn(f"Package {pkg} is not installed. Installing...")
 
@@ -56,6 +64,7 @@ def check_pkgs(settings: Settings) -> None:
                 stderr=subprocess.DEVNULL,
                 check=False,
             )
+
             subprocess.run(
                 ["sudo", "apt", "install", "-y", pkg],
                 stdout=subprocess.DEVNULL,
@@ -80,4 +89,4 @@ def check_pkgs(settings: Settings) -> None:
 
         success(f"Package {pkg} installed successfully.")
 
-    info("Successfully installed all dependencies.")
+    info("Successfully installed all system dependencies.")

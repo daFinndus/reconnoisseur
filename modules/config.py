@@ -7,6 +7,7 @@ from pathlib import Path
 # Find out where the repository is located.
 repo_path = Path(__file__).resolve().parent.parent
 
+# Set default values.
 DEFAULT_OUTPUT = f"{repo_path}/output"
 DEFAULT_PINGOUT = 10
 

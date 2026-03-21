@@ -1,61 +1,51 @@
-from __future__ import annotations
+import requests
+import urllib3
 
-import http.client
-import socket
-import ssl
+from urllib.parse import urlparse
 
-from modules.helpers import info, success
-
-
-def looks_like_http(response: http.client.HTTPResponse) -> bool:
-    if not (100 <= response.status <= 599):
-        return False
-
-    header_names = {name.lower() for name in response.headers.keys()}
-    expected_headers = {"server", "location", "content-type", "set-cookie"}
-
-    return bool(header_names & expected_headers) or response.status in {
-        200,
-        301,
-        302,
-        401,
-        403,
-    }
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
-def probe_http(host: str, port: int, use_tls: bool, timeout: float = 2.5) -> bool:
-    connection: http.client.HTTPConnection | http.client.HTTPSConnection
+def probe_web_services(services: dict) -> dict:
+    results = {}
 
-    try:
-        if use_tls:
-            context = ssl.create_default_context()
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-            connection = http.client.HTTPSConnection(
-                host, port=port, timeout=timeout, context=context
+    for ip, ports in services.items():
+        for port, service in ports.items():
+            if "http" not in service.lower():
+                continue
+
+            # Determine scheme from service name, fall back to trying both
+            schemes = (
+                ["https", "http"] if service.lower() == "https" else ["http", "https"]
             )
-        else:
-            connection = http.client.HTTPConnection(host, port=port, timeout=timeout)
 
-        connection.request(
-            "HEAD", "/", headers={"Host": host, "User-Agent": "Reconnoisseur/1.0"}
-        )
-        response = connection.getresponse()
-        return looks_like_http(response)
-    except (http.client.HTTPException, OSError, socket.timeout, ssl.SSLError):
-        return False
-    finally:
-        try:
-            connection.close()
-        except Exception:
-            pass
+            for scheme in schemes:
+                url = f"{scheme}://{ip}:{port}"
+                try:
+                    response = requests.get(
+                        url, timeout=5, verify=False, allow_redirects=True
+                    )
 
+                    final_url = response.url
+                    final_host = urlparse(final_url).hostname
+                    redirect_detected = final_host != ip
 
-def extract_webserver(ports: dict[str, str]) -> list[str]:
-    discovered: list[str] = []
+                    results[f"{ip}:{port}"] = {
+                        "scheme": scheme,
+                        "status_code": response.status_code,
+                        "final_url": final_url,
+                        "redirect_to_custom_host": redirect_detected,
+                        "custom_host": final_host if redirect_detected else None,
+                        "redirect_chain": [r.url for r in response.history],
+                    }
+                    break
 
-    return []
+                except requests.exceptions.SSLError:
+                    continue
+                except (
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout,
+                ):
+                    break
 
-
-def check_prerequisites() -> bool:
-    return True
+    return results

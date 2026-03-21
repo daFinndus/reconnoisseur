@@ -8,9 +8,6 @@ from modules.helpers import error, info, step, success, timestamp, warn
 
 # Show a quick terminal color preview unless disabled.
 def check_colors(settings: Settings) -> None:
-    if not settings.color_check:
-        return
-
     step("Checking if the terminal displays colors correctly...")
 
     info("This should be blue.")
