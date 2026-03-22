@@ -4,7 +4,7 @@ import re
 import subprocess
 
 from modules.config import Settings
-from modules.helpers import contains_control_chars, error, info, step, success
+from modules.helpers import contains_control_chars, error, log, step, success
 
 
 # Validate target syntax and then verify reachability.
@@ -24,7 +24,7 @@ def validate_target(settings: Settings) -> None:
         error("The target must be a valid IPv4 address, hostname, or IPv4 CIDR range.")
         raise SystemExit(1)
 
-    success(f"Target {settings.target} looks good, let's see if it's reachable.")
+    log(f"Target {settings.target} looks good, let's see if it's reachable.")
 
     step("Checking reachability of the target...")
 
@@ -35,7 +35,7 @@ def validate_target(settings: Settings) -> None:
 
 
 def check_subnet_compatibility(settings: Settings) -> None:
-    info("Seems you are using a subnet, checking compatibility...")
+    log("Seems you are using a subnet, checking compatibility...")
 
     route_result = subprocess.run(
         ["ip", "route"],
@@ -53,7 +53,7 @@ def check_subnet_compatibility(settings: Settings) -> None:
         if "/" in first:
             local_subnets.append(first)
 
-    info(f"Found the following local subnets: {' '.join(local_subnets)}.")
+    log(f"Found the following local subnets: {' '.join(local_subnets)}.")
 
     # Check if the target is in any of the local subnets
     ipcalc_result = subprocess.run(
@@ -77,29 +77,41 @@ def check_subnet_compatibility(settings: Settings) -> None:
 
         return
 
-    info(f"The target is in {subnet} and you're in {' '.join(local_subnets)}.")
+    log(f"The target is in {subnet} and you're in {' '.join(local_subnets)}.")
     error("Please make sure you are in the same subnet as the target.")
 
     raise SystemExit(1)
 
 
 def check_host_reachability(settings: Settings) -> None:
-    info("The target is a single host, checking if it's reachable.")
+    log("The target is a single host, checking if it's reachable.")
 
-    ping_result = subprocess.run(
-        ["ping", "-c", "1", "-W", settings.pingout, settings.target],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=False,
+    args = ["nmap", settings.target, "-sn", "--host-timeout", settings.pingout]
+
+    log(f"Running nmap with the following command:\n\n {' '.join(args)}\n")
+
+    ping_result = (
+        subprocess.run(args, capture_output=True, text=True, check=False)
+        if settings.verbose
+        else subprocess.run(
+            args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False,
+        )
     )
 
-    if ping_result.returncode == 0:
-        success(f"The target {settings.target} is reachable. Proceeding with recon.")
+    log(f"This here is the response:\n\n{ping_result.stdout}\n")
+
+    if "Host is up" in ping_result.stdout:
+        log(f"The target {settings.target} is reachable, good job!")
         return
+    else:
+        log(f"The target {settings.target} is not reachable.")
+        log(f"The nmap scan result was {ping_result.returncode}.")
 
-    error(
-        f"The target {settings.target} is not reachable. Please check the address and try again."
-    )
+    error(f"The target {settings.target} is not reachable.")
     raise SystemExit(1)
 
 
@@ -130,7 +142,7 @@ def is_valid_target(candidate: str) -> bool:
     if "/" in candidate:
         address, prefix = candidate.rsplit("/", maxsplit=1)
 
-        info(f"Got address {address} and prefix {prefix} from the provided CIDR.")
+        log(f"Got address {address} and prefix {prefix} from the provided CIDR.")
 
         if not is_valid_ipv4(address):
             return False

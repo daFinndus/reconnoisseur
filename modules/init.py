@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from modules.config import DEFAULT_OUTPUT, Settings
-from modules.helpers import error, info, step, success, timestamp, warn
+from modules.helpers import error, info, log, step, success, timestamp, warn
 
 
 # Show a quick terminal color preview unless disabled.
@@ -23,16 +23,17 @@ def check_colors(settings: Settings) -> None:
 def init_workspace(settings: Settings) -> None:
     step("Creating necessary directories...")
 
-    Path(f"{settings.output or DEFAULT_OUTPUT}").mkdir(parents=True, exist_ok=True)
-    success("Made sure that the output directory exists.")
+    output_dir = Path(settings.output or DEFAULT_OUTPUT)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    if settings.project_name:
-        info("Project name provided via CLI, creating workspace...")
-    else:
+    log("Made sure that the output directory exists.")
+
+    if not settings.project_name:
         name = input(f"[{timestamp()}] Please give this project a name: ")
         info(f"Using {name} as the project name and creating workspace directories...")
+    else:
+        log("Project name provided via CLI, creating workspace...")
 
-    output_dir = Path(settings.output or DEFAULT_OUTPUT)
     settings.workspace = f"{output_dir}/{settings.project_name or name}"
 
     if Path(settings.workspace).exists():

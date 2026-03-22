@@ -68,3 +68,10 @@ def warn(message: str) -> None:
 def error(message: str) -> None:
     print(f"{COLORS[0]}[{timestamp()}] {COLORS[-1]}{message}")
     _sleep(1.0)
+
+
+# This is for verbosity logging.
+def log(message: str) -> None:
+    if SETTINGS.verbose:
+        print(f"{COLORS[4]}[{timestamp()}] {COLORS[-1]}{message}")
+        _sleep(0.5)

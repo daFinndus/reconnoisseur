@@ -5,13 +5,13 @@ import subprocess
 import importlib.util
 
 from modules.config import Settings
-from modules.helpers import error, info, step, success, timestamp, warn
+from modules.helpers import error, info, log, step, success, timestamp, warn
 
 
 # Detect which supported package manager is available.
 def check_pkg_manager(settings: Settings) -> None:
     step("Checking for package manager...")
-    info("Currently only apt and yay are supported!")
+    log("Currently only apt and yay are supported!")
 
     apt_path = shutil.which("apt")
     yay_path = shutil.which("yay")
@@ -35,15 +35,17 @@ def check_pkgs(settings: Settings) -> None:
     step("Checking for required packages...")
 
     for pkg in pkgs:
-        if "python" in pkg:
-            pkg = pkg.replace("python-", "")
+        lookup_name = pkg
 
-            if importlib.util.find_spec(pkg) is not None:
-                success(f"Python package {pkg} is installed.")
+        if "python" in pkg:
+            lookup_name = pkg.replace("python-", "")
+
+            if importlib.util.find_spec(lookup_name) is not None:
+                log(f"Python package {lookup_name} is installed.")
                 continue
         else:
-            if shutil.which(pkg):
-                success(f"Package {pkg} is installed.")
+            if shutil.which(lookup_name):
+                log(f"Package {pkg} is installed.")
                 continue
 
         warn(f"Package {pkg} is not installed. Installing...")
@@ -81,7 +83,13 @@ def check_pkgs(settings: Settings) -> None:
                 check=False,
             )
 
-        if not shutil.which(pkg):
+        if "python" in pkg:
+            if importlib.util.find_spec(lookup_name) is None:
+                error(
+                    f"Failed to install {pkg}. Please install it manually and re-run the script."
+                )
+                raise SystemExit(1)
+        elif not shutil.which(lookup_name):
             error(
                 f"Failed to install {pkg}. Please install it manually and re-run the script."
             )
@@ -89,4 +97,4 @@ def check_pkgs(settings: Settings) -> None:
 
         success(f"Package {pkg} installed successfully.")
 
-    info("Successfully installed all system dependencies.")
+    success("Successfully installed all system dependencies.")
