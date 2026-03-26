@@ -42,29 +42,36 @@ def _sleep(seconds: float) -> None:
 
 # Print a primary step message and pause a bit longer.
 def step(message: str) -> None:
-    print(f"\n{COLORS[3]}[{timestamp()}] {COLORS[-1]}{message}")
+    print(f"\n{COLORS[3]}[*] {COLORS[-1]}{message}")
     _sleep(1.0)
 
 
 # Print an informational message.
 def info(message: str) -> None:
-    print(f"{COLORS[4]}[{timestamp()}] {COLORS[-1]}{message}")
+    print(f"{COLORS[4]}[?] {COLORS[-1]}{message}")
     _sleep(0.5)
 
 
 # Print a success message.
 def success(message: str) -> None:
-    print(f"{COLORS[2]}[{timestamp()}] {COLORS[-1]}{message}")
+    print(f"{COLORS[2]}[+] {COLORS[-1]}{message}")
     _sleep(0.5)
 
 
 # Print a warning message.
 def warn(message: str) -> None:
-    print(f"{COLORS[1]}[{timestamp()}] {COLORS[-1]}{message}")
+    print(f"{COLORS[1]}[!] {COLORS[-1]}{message}")
     _sleep(0.5)
 
 
 # Print an error message and pause slightly longer.
 def error(message: str) -> None:
-    print(f"{COLORS[0]}[{timestamp()}] {COLORS[-1]}{message}")
+    print(f"{COLORS[0]}[-] {COLORS[-1]}{message}")
     _sleep(1.0)
+
+
+# This is for verbosity logging.
+def log(message: str) -> None:
+    if SETTINGS.verbose:
+        print(f"{COLORS[4]}[?] {COLORS[-1]}{message}")
+        _sleep(0.5)

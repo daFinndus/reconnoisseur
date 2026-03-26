@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 
 from modules.config import Settings
-from modules.helpers import error, info, step, success, timestamp, warn
+from modules.helpers import error, info, log, step, success, timestamp, warn
 
 
 # Sanitize a target string so it is safe to use in filenames.
@@ -20,8 +20,7 @@ class Nmap:
         self.settings = settings
 
         self.hosts: list[str] = []  # This will hold discovered or the provided host.
-        # host -> {port -> detected service name (can be empty when unknown)}
-        self.ports: dict[str, dict[str, str]] = {}
+        self.ports: dict[str, dict[str, str]] = {}  # Self explantory.
 
         self.nmap_dir = Path("/tmp")
 
@@ -35,10 +34,10 @@ class Nmap:
 
             success("Created the nmap directory in the workspace!")
         else:
-            warn("Saving is disabled, the nmap scan results won't be stored.")
+            warn("Saving is disabled, the results will only temporarily be stored.")
 
         if self.settings.subnet:
-            info("Subnet mode is enabled, discovering live hosts and scanning them...")
+            log("Subnet mode is enabled, discovering live hosts and scanning them...")
 
             if not self.scan_subnet_hosts():
                 error(f"Subnet scanning failed for {self.settings.target}.")
@@ -54,10 +53,10 @@ class Nmap:
 
         # Delete the temporary file if saving is disabled.
         if not self.settings.save:
-            gnmap_file = f"/tmp/temporary.gnmap"
+            gnmap_file = f"{self.nmap_dir}/temporary.gnmap"
 
             Path(gnmap_file).unlink(missing_ok=True)
-            success("Deleted the temporary .gnmap file again.")
+            log("Deleted the temporary .gnmap file again.")
 
         success(f"Port scanning finished.")
 
@@ -66,10 +65,10 @@ class Nmap:
     # Discover live hosts in a subnet and scan each host individually.
     # Writes discovered hosts to a log file and uses the last octet for per-host output names.
     def scan_subnet_hosts(self) -> bool:
-        output_file = self.nmap_dir / "subnet"
+        output_file = f"{self.nmap_dir}/subnet"
 
         if self.settings.save:
-            info(f"Going to use subnet as the base name for nmap output files.")
+            log(f"Going to use subnet as the base name for nmap output files.")
 
         if not self.settings.yes:
             confirm = input(f"[{timestamp()}] Do you want to continue? (y/N) ")
@@ -80,7 +79,7 @@ class Nmap:
         else:
             warn("Skipping confirmation prompt for output name, be careful with that!")
 
-        info(f"Discovering live hosts inside {self.settings.target} first.")
+        log(f"Discovering live hosts inside {self.settings.target} first.")
 
         args = ["-sn", self.settings.target]
 
@@ -88,7 +87,7 @@ class Nmap:
             error(f"Host discovery failed for {self.settings.target}.")
             return False
 
-        self.hosts = self.extract_live_hosts(f"{str(output_file)}.gnmap")
+        self.hosts = self.extract_live_hosts(f"{output_file}.gnmap")
 
         if not self.hosts:
             warn(f"No live hosts were discovered in {self.settings.target}.")
@@ -114,7 +113,7 @@ class Nmap:
     # Run a port scan for one host, show open ports, then optionally run service detection.
     def scan_host_ports(self, host: str) -> bool:
         output_name = sanitize_scan_name(host)
-        output_dir = self.nmap_dir / output_name
+        output_dir = f"{self.nmap_dir}/{output_name}"
 
         if self.settings.save:
             info(f"Going to use {output_name} as the name for nmap output files.")
@@ -129,7 +128,7 @@ class Nmap:
             warn(f"Skipping confirmation prompt again, scanning {host}!")
 
         if self.settings.full_port_scan:
-            info(f"Scanning all TCP ports on {host}. This may take a while.")
+            log(f"Scanning all TCP ports on {host}. This may take a while.")
 
             args = ["-Pn", "-p-", host]
 
@@ -137,7 +136,7 @@ class Nmap:
                 error(f"Port scan failed for {host}.")
                 return False
         else:
-            info(f"Scanning nmap's default top 1000 TCP ports on {host}.")
+            log(f"Scanning nmap's default top 1000 TCP ports on {host}.")
 
             args = ["-Pn", host]
 
@@ -145,7 +144,7 @@ class Nmap:
                 error(f"Port scan failed for {host}.")
                 return False
 
-        self.extract_ports(host, f"{str(output_dir)}.gnmap")
+        self.extract_ports(host, f"{output_dir}.gnmap")
 
         print()
 
@@ -164,10 +163,10 @@ class Nmap:
     # Run follow-up service/version detection on discovered open ports.
     def run_service_scan(self, host: str) -> bool:
         output_name = f"{sanitize_scan_name(host)}-service"
-        output_dir = self.nmap_dir / output_name
+        output_dir = f"{self.nmap_dir}/{output_name}"
 
         if not self.settings.service_scan:
-            info(f"Skipping service detection for {host}, disabled via CLI option.")
+            log(f"Skipping service detection for {host}, disabled via CLI option.")
             return True
 
         host_ports = self.ports.get(host, {})
@@ -177,7 +176,7 @@ class Nmap:
             warn(f"Skipping service scan for {host}, no open TCP ports were found.")
             return True
 
-        info(f"Running service detection against {host} on ports {ports}.")
+        log(f"Running service detection against {host} on ports {ports}.")
 
         args = ["-Pn", "-sV", "-sC", "-p", ports, host]
 
@@ -186,11 +185,10 @@ class Nmap:
             return False
 
         # Parse service scan output to enrich port -> service mapping.
-        self.extract_ports(host, f"{str(output_dir)}.gnmap")
-
-        print()
+        self.extract_ports(host, f"{output_dir}.gnmap")
 
         if self.settings.save:
+            print()
             success(f"Saved service detection results to .nmap, .gnmap and .xml.")
 
         return True
@@ -210,9 +208,16 @@ class Nmap:
             cmd.append("-v")
 
         # Print newline so the nmap scan is presented clearly
-        print()
+        if self.settings.verbose:
+            print()
 
-        result = subprocess.run(cmd, check=False)
+        log(f"Running nmap with the following command:\n\n{' '.join(cmd)}\n")
+
+        result = (
+            subprocess.run(cmd, check=False)
+            if self.settings.verbose
+            else subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL)
+        )
 
         return result.returncode == 0
 
@@ -249,7 +254,7 @@ class Nmap:
 
     # Parse a .gnmap file and return hosts marked as up.
     def extract_live_hosts(self, gnmap_file: str) -> list[str]:
-        self.hosts: list[str] = []
+        self.hosts = []
 
         if not self.settings.save:
             gnmap_file = f"/tmp/temporary.gnmap"

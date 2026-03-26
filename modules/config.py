@@ -1,7 +1,9 @@
+# This file contains project variables and other configurations.
+# --------------------------------------------------------------
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-
 from pathlib import Path
 
 # Find out where the repository is located.

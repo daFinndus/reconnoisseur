@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import sys
 import argparse
+import sys
 
 from modules.config import DEFAULT_OUTPUT, DEFAULT_PINGOUT, Settings
 from modules.helpers import contains_control_chars, error, is_positive_integer

@@ -5,13 +5,14 @@ from __future__ import annotations
 import sys
 
 from modules.config import SETTINGS
-from modules.helpers import step, error
+from modules.finish import summarize
+from modules.helpers import error, step
 from modules.init import check_colors, init_workspace
 from modules.nmap import Nmap
-from modules.web_enumeration import probe_web_services
+from modules.parser import parse_args
 from modules.system import check_pkg_manager, check_pkgs
 from modules.target import validate_target
-from modules.parser import parse_args
+from modules.web_enumeration import probe_web_services
 
 
 # Run the full recon workflow from parsed CLI arguments.
@@ -42,19 +43,17 @@ def main(argv: list[str]) -> int:
         error("Port scanning failed, exiting.")
         return 1
 
-    # This will soon be implemented.
-    print(probe_web_services(nmap.ports))
+    # Scan for web services and add them to the hosts file if needed.
+    web_results = probe_web_services(SETTINGS, nmap.ports)
 
-    # TODO: Add Nmap XML parsing for web hints
-    # TODO: Build target URL candidates
-    # TODO: Implement web reachability check
-    # TODO: Detect hostname redirects
-    # TODO: Add safe hosts-file workflow
     # TODO: Integrate ffuf pipeline
     # TODO: Add result parsing and reporting
     # TODO: Add CLI flags for web enum control
     # TODO: Add error handling and prerequisites
     # TODO: Add tests and sample fixtures
+
+    # Print all results in a nice format here, save them if enabled.
+    summarize(nmap.ports, web_results)
 
     return 0
 
@@ -63,6 +62,6 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main(sys.argv[1:]))
     except KeyboardInterrupt:
-        print("\n")
+        print()
         error("Interrupted by user, exiting.")
         raise SystemExit(1)
