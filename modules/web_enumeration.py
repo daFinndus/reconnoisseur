@@ -147,12 +147,14 @@ def modify_hostfile(hostname: str, ip_address: str) -> None:
         with open("/tmp/hosts.tmp", "w", encoding="utf-8") as handle:
             for line in lines:
                 handle.write(line)
+
             handle.write(f"{ip_address}\t{cleaned_hostname}\n")
+            log("Wrote new entry to temporary hosts file.")
 
         # Then move the newly modified file back to /etc/hosts with sudo permissions.
         subprocess.run(["sudo", "mv", "/tmp/hosts.tmp", hosts_path], check=True)
 
-        success(f"Added {cleaned_hostname} with IP {ip_address} to {hosts_path}.")
+        success(f"{cleaned_hostname} with IP {ip_address} is in {hosts_path}.")
 
     except Exception as exc:
         error(f"Failed to modify hosts file: {exc}")
