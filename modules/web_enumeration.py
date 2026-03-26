@@ -7,7 +7,7 @@ import requests
 import urllib3
 
 from modules.config import Settings
-from modules.helpers import error, info, log, success, timestamp
+from modules.helpers import error, info, log, step, success, timestamp
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -121,6 +121,8 @@ def probe_web_services(
 
 
 def modify_hostfile(hostname: str, ip_address: str) -> None:
+    step(f"Adding hostname {hostname} to hosts file.")
+
     cleaned_hostname = hostname.strip()
 
     if not cleaned_hostname or cleaned_hostname == ip_address:
@@ -138,9 +140,7 @@ def modify_hostfile(hostname: str, ip_address: str) -> None:
             fields = line.split()
 
             if cleaned_hostname in fields[1:]:
-                log(
-                    f"Hostname {cleaned_hostname} already exists in, skipping modification."
-                )
+                log(f"Hostname {cleaned_hostname} already exists.")
                 return
 
         # Write to temporary host file because direct modification is not allowed.
@@ -152,7 +152,7 @@ def modify_hostfile(hostname: str, ip_address: str) -> None:
         # Then move the newly modified file back to /etc/hosts with sudo permissions.
         subprocess.run(["sudo", "mv", "/tmp/hosts.tmp", hosts_path], check=True)
 
-        log(f"Added {cleaned_hostname} with IP {ip_address} to {hosts_path}.")
+        success(f"Added {cleaned_hostname} with IP {ip_address} to {hosts_path}.")
 
     except Exception as exc:
         error(f"Failed to modify hosts file: {exc}")
