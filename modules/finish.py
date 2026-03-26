@@ -15,7 +15,7 @@ def summarize(ports: dict[str, dict[str, str]], web: dict[str, dict]) -> None:
         return
 
     hosts = len(ports)
-    open_ports = sum(len(p) for p in ports.values())
+    open_ports = sum(len(host_ports) for host_ports in ports.values())
     web_hits = len(web)
 
     info(f"{hosts} hosts | {open_ports} open ports | {web_hits} web hits")

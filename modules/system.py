@@ -30,78 +30,113 @@ def check_pkg_manager(settings: Settings) -> None:
 # Ensure required tools exist and offer interactive installation when missing.
 # Installs with the detected package manager and fails fast if installation did not succeed.
 def check_pkgs(settings: Settings) -> None:
-    pkgs = [
-        "nmap",
-        "ffuf",
-        "ipcalc",
-        "python-requests",
-        "python-urllib3",
-        "python-rich",
+    dependencies = [
+        {
+            "name": "nmap",
+            "kind": "bin",
+            "check": "nmap",
+            "pkg": {"apt": "nmap", "yay": "nmap"},
+        },
+        {
+            "name": "ffuf",
+            "kind": "bin",
+            "check": "ffuf",
+            "pkg": {"apt": "ffuf", "yay": "ffuf"},
+        },
+        {
+            "name": "ipcalc",
+            "kind": "bin",
+            "check": "ipcalc",
+            "pkg": {"apt": "ipcalc", "yay": "ipcalc"},
+        },
+        {
+            "name": "requests",
+            "kind": "py",
+            "check": "requests",
+            "pkg": {"apt": "python3-requests", "yay": "python-requests"},
+        },
+        {
+            "name": "urllib3",
+            "kind": "py",
+            "check": "urllib3",
+            "pkg": {"apt": "python3-urllib3", "yay": "python-urllib3"},
+        },
+        {
+            "name": "rich",
+            "kind": "py",
+            "check": "rich",
+            "pkg": {"apt": "python3-rich", "yay": "python-rich"},
+        },
     ]
 
     step("Checking for required packages...")
+    apt_index_updated = False
 
-    for pkg in pkgs:
-        lookup_name = pkg
+    for dependency in dependencies:
+        module_name = dependency["check"]
+        dependency_kind = dependency["kind"]
+        is_installed = (
+            importlib.util.find_spec(module_name) is not None
+            if dependency_kind == "py"
+            else shutil.which(module_name) is not None
+        )
 
-        if "python" in pkg:
-            lookup_name = pkg.replace("python-", "")
+        if is_installed:
+            log(f"Dependency {dependency['name']} is installed.")
+            continue
 
-            if importlib.util.find_spec(lookup_name) is not None:
-                log(f"Python package {lookup_name} is installed.")
-                continue
-        else:
-            if shutil.which(lookup_name):
-                log(f"Package {pkg} is installed.")
-                continue
-
-        warn(f"Package {pkg} is not installed. Installing...")
+        package_name = dependency["pkg"][settings.manager]
+        warn(
+            f"Dependency {dependency['name']} is missing. Installing {package_name}..."
+        )
 
         if not settings.yes:
-            answer = input(f"[{timestamp()}] Do you want to install {pkg}? (y/N) ")
-
-            if answer != "y":
-                error(f"Package {pkg} is required. Exiting.")
-                raise SystemExit(1)
-        else:
-            warn(f"Skipping confirmation prompt, installing {pkg}!")
-
-        if settings.manager == "apt":
-            subprocess.run(
-                ["sudo", "apt", "update"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=False,
+            answer = input(
+                f"[{timestamp()}] Do you want to install {package_name}? (y/N) "
             )
 
+            if answer != "y":
+                error(f"Dependency {dependency['name']} is required. Exiting.")
+                raise SystemExit(1)
+        else:
+            warn(f"Skipping confirmation prompt, installing {package_name}!")
+
+        if settings.manager == "apt":
+            if not apt_index_updated:
+                subprocess.run(
+                    ["sudo", "apt", "update"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+                apt_index_updated = True
+
             subprocess.run(
-                ["sudo", "apt", "install", "-y", pkg],
+                ["sudo", "apt", "install", "-y", package_name],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=False,
             )
         elif settings.manager == "yay":
             subprocess.run(
-                ["yay", "-S", pkg],
-                input="y\n",
-                text=True,
+                ["yay", "-S", "--noconfirm", package_name],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=False,
             )
 
-        if "python" in pkg:
-            if importlib.util.find_spec(lookup_name) is None:
-                error(
-                    f"Failed to install {pkg}. Please install it manually and re-run the script."
-                )
-                raise SystemExit(1)
-        elif not shutil.which(lookup_name):
+        is_installed = (
+            importlib.util.find_spec(module_name) is not None
+            if dependency_kind == "py"
+            else shutil.which(module_name) is not None
+        )
+
+        if not is_installed:
             error(
-                f"Failed to install {pkg}. Please install it manually and re-run the script."
+                f"Failed to install {dependency['name']}. Please install it manually and re-run the script."
             )
             raise SystemExit(1)
 
-        success(f"Package {pkg} installed successfully.")
+        success(f"Dependency {dependency['name']} installed successfully.")
 
     success("Successfully installed all system dependencies.")

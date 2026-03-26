@@ -77,7 +77,7 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
     runtime_group = parser.add_argument_group("Runtime")
     runtime_group.add_argument(
         "-ns",
-        dest="save",
+        dest="no_save",
         action="store_true",
         help="Disable saving the scan results, logs, etc. to the output.",
     )
@@ -106,35 +106,35 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
 # Parse CLI arguments and update shared runtime settings.
 def parse_args(argv: list[str], settings: Settings) -> None:
     parser = build_parser(sys.argv[0])
-    args = parser.parse_args(argv)
+    parsed_args = parser.parse_args(argv)
 
     # Check if pingout is a valid positive integer, if provided.
-    if args.pingout and not is_positive_integer(args.pingout):
+    if parsed_args.pingout and not is_positive_integer(parsed_args.pingout):
         error("The ping timeout must be a positive integer, using default.")
-        args.pingout = ""
+        parsed_args.pingout = ""
 
     # Check if output is valid, if provided.
-    if args.output and contains_control_chars(args.output):
+    if parsed_args.output and contains_control_chars(parsed_args.output):
         error(
             "The output directory contains unsupported control characters, using default."
         )
-        args.output = ""
+        parsed_args.output = ""
 
     # Check if project name seems good, if provided.
-    if args.project_name and contains_control_chars(args.project_name):
+    if parsed_args.project_name and contains_control_chars(parsed_args.project_name):
         error(
             "The project name contains unsupported control characters, using default."
         )
-        args.project_name = ""
+        parsed_args.project_name = ""
 
-    settings.target = args.target
-    settings.pingout = args.pingout or str(DEFAULT_PINGOUT)
-    settings.full_port_scan = args.full_ports
-    settings.service_scan = not args.no_service_scan
-    settings.yes = args.yes
-    settings.output = args.output or str(DEFAULT_OUTPUT)
-    settings.color_check = not args.no_color_check
-    settings.project_name = args.project_name or ""
-    settings.verbose = args.verbose
-    settings.save = not args.save
-    settings.delay = not args.no_delay
+    settings.target = parsed_args.target
+    settings.pingout = parsed_args.pingout or str(DEFAULT_PINGOUT)
+    settings.full_port_scan = parsed_args.full_ports
+    settings.service_scan = not parsed_args.no_service_scan
+    settings.yes = parsed_args.yes
+    settings.output = parsed_args.output or str(DEFAULT_OUTPUT)
+    settings.color_check = not parsed_args.no_color_check
+    settings.project_name = parsed_args.project_name or ""
+    settings.verbose = parsed_args.verbose
+    settings.save = not parsed_args.no_save
+    settings.delay = not parsed_args.no_delay

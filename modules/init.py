@@ -15,7 +15,7 @@ def check_colors(settings: Settings) -> None:
     warn("This should be yellowish.")
     error("This should be red.")
 
-    info("The script can run without the colors being a 100% match.")
+    info("The script can run without the colors being a match.")
 
 
 # Create base directories and the project workspace.
@@ -29,15 +29,20 @@ def init_workspace(settings: Settings) -> None:
     log("Made sure that the output directory exists.")
 
     if not settings.project_name:
-        name = input(f"[{timestamp()}] Please give this project a name: ")
-        info(f"Using {name} as the project name and creating workspace directories...")
+        project_name = input(f"[{timestamp()}] Please give this project a name: ")
+        info(
+            f"Using {project_name} as the project name and creating workspace directories..."
+        )
+
+        workspace_name = project_name
     else:
         log("Project name provided via CLI, creating workspace...")
+        workspace_name = settings.project_name
 
-    settings.workspace = f"{output_dir}/{settings.project_name or name}"
+    settings.workspace = f"{output_dir}/{workspace_name}"
 
     if Path(settings.workspace).exists():
-        warn(f"Workspace {settings.project_name or name} already exists, using it...")
+        warn(f"Workspace {workspace_name} already exists, using it...")
         warn("This will probably overwrite files!")
 
         if not settings.yes:

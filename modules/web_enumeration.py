@@ -12,6 +12,15 @@ from modules.helpers import error, info, log, success, timestamp
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
+def _schemes(service: str) -> list[str]:
+    service_name = service.lower()
+
+    if "https" in service_name:
+        return ["https", "http"]
+
+    return ["http", "https"]
+
+
 def probe_web_services(
     settings: Settings,
     services: dict[str, dict[str, str]],
@@ -27,33 +36,31 @@ def probe_web_services(
     else:
         log("Skipping confirmation prompt, doing web enumeration!")
 
-    results = {}
+    results: dict[str, dict] = {}
 
-    for ip, ports in services.items():
-        log(f"Looking in {ip} for webservices.")
+    for ip_address, ports in services.items():
+        log(f"Looking in {ip_address} for web services.")
 
         for port, service in ports.items():
-            log(f"Searching through {ip}:{port} for web services...")
+            endpoint = f"{ip_address}:{port}"
+            log(f"Searching through {ip_address}:{port} for web services...")
 
             if "http" not in service.lower():
-                log(f"Skipping non-web service on {ip}:{port}!")
+                log(f"Skipping non-web service on {ip_address}:{port}!")
                 log(f"http not found in service name '{service}', skipping.")
                 continue
 
-            log(f"Found potential web service on {ip}:{port}.")
+            log(f"Found potential web service on {ip_address}:{port}.")
 
-            # Determine scheme from service name, fall back to trying both.
-            schemes = ["https", "http"]
-
-            for scheme in schemes:
-                url = f"{scheme}://{ip}:{port}"
-                log(f"Probing {url}.")
+            for scheme in _schemes(service):
+                probe_url = f"{scheme}://{ip_address}:{port}"
+                log(f"Probing {probe_url}.")
 
                 try:
                     # First request without following redirects.
                     # This is to detect if there are hostname redirects.
                     response = requests.get(
-                        url,
+                        probe_url,
                         verify=False,
                         allow_redirects=False,
                         timeout=5,
@@ -61,41 +68,47 @@ def probe_web_services(
 
                     log(f"Got following response status: {response.status_code}")
 
+                    item: dict[str, object] = {
+                        "scheme": scheme,
+                        "status_code": response.status_code,
+                    }
+
                     if response.is_redirect:
                         log("Redirect detected!")
 
-                        redirect_target = ""
-                        redirect_chain = []
+                        location_header = response.headers.get("Location", "")
 
-                        location = response.headers.get("Location")
+                        redirect_target = (
+                            urljoin(probe_url, location_header)
+                            if location_header
+                            else ""
+                        )
 
-                        if location:
-                            redirect_target = urljoin(url, location)
+                        redirect_hostname = urlparse(redirect_target).hostname or ""
+
+                        if redirect_target:
                             log(f"Detected redirect target: {redirect_target}.")
+                            item["redirect_target"] = redirect_target
 
-                        modify_hostfile(str(urlparse(redirect_target).hostname), ip)
-                        log(f"Final host after redirects: {str(redirect_target)}.")
+                        if redirect_hostname and redirect_hostname != ip_address:
+                            modify_hostfile(redirect_hostname, ip_address)
+                            item["custom_host"] = redirect_hostname
 
-                        results[f"{ip}:{port}"] = {
-                            "scheme": scheme,
-                            "status_code": response.status_code,
-                            "redirect_target": redirect_target,
-                            "custom_host": (redirect_target),
-                            "redirect_chain": redirect_chain,
-                        }
+                        log(
+                            "Final host after redirects: "
+                            f"{redirect_target or redirect_hostname or 'unknown'}."
+                        )
                     else:
                         log("No redirect detected, seems like a normal web service.")
 
-                        results[f"{ip}:{port}"] = {
-                            "scheme": scheme,
-                            "status_code": response.status_code,
-                        }
+                    results[endpoint] = item
+                    break
                 except requests.exceptions.SSLError:
-                    error("Got a certificate error!")
+                    log(f"TLS handshake failed for {probe_url}, trying fallback.")
                     continue
                 except requests.exceptions.ConnectionError:
                     error("Couldn't connect to webservice!")
-                    break
+                    continue
                 except requests.exceptions.Timeout:
                     error("Can't reach webserver, timed out!")
                     continue
@@ -103,34 +116,43 @@ def probe_web_services(
                     error(f"Unexpected web probe error: {exc}")
                     continue
 
-        success(f"Finished probing {ip} for web services.")
+        success(f"Finished probing {ip_address} for web services.")
     return results
 
 
-def modify_hostfile(hostname: str, ip: str) -> None:
+def modify_hostfile(hostname: str, ip_address: str) -> None:
+    cleaned_hostname = hostname.strip()
+
+    if not cleaned_hostname or cleaned_hostname == ip_address:
+        return
+
     hosts_path = "/etc/hosts"
 
     try:
-        with open(hosts_path, "r", encoding="utf-8") as f:
+        with open(hosts_path, "r", encoding="utf-8") as handle:
             # Read the whole hostfile for checking and rewriting.
-            lines = f.readlines()
+            lines = handle.readlines()
 
         # Check if the hostname already exists in the hosts file.
         for line in lines:
-            if line.strip().endswith(hostname):
-                log(f"Hostname {hostname} already exists in, skipping modification.")
+            fields = line.split()
+
+            if cleaned_hostname in fields[1:]:
+                log(
+                    f"Hostname {cleaned_hostname} already exists in, skipping modification."
+                )
                 return
 
         # Write to temporary host file because direct modification is not allowed.
-        with open("/tmp/hosts.tmp", "w", encoding="utf-8") as f:
+        with open("/tmp/hosts.tmp", "w", encoding="utf-8") as handle:
             for line in lines:
-                f.write(line)
-            f.write(f"{ip}\t{hostname}\n")
+                handle.write(line)
+            handle.write(f"{ip_address}\t{cleaned_hostname}\n")
 
         # Then move the newly modified file back to /etc/hosts with sudo permissions.
         subprocess.run(["sudo", "mv", "/tmp/hosts.tmp", hosts_path], check=True)
 
-        log(f"Added {hostname} with IP {ip} to {hosts_path}.")
+        log(f"Added {cleaned_hostname} with IP {ip_address} to {hosts_path}.")
 
     except Exception as exc:
         error(f"Failed to modify hosts file: {exc}")

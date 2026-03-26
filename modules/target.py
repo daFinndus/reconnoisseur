@@ -4,7 +4,7 @@ import re
 import subprocess
 
 from modules.config import Settings
-from modules.helpers import contains_control_chars, error, info, log, step, success
+from modules.helpers import contains_control_chars, error, log, step, success
 
 
 # Validate target syntax and then verify reachability.
@@ -44,16 +44,21 @@ def check_subnet_compatibility(settings: Settings) -> None:
         check=False,
     )
 
+    if route_result.returncode != 0:
+        error("Failed to list local routes using 'ip route'.")
+        raise SystemExit(1)
+
     # Check subnets the host is in
-    local_subnets = []
+    local_networks = []
 
     for line in route_result.stdout.splitlines():
-        first = line.split(maxsplit=1)[0] if line.split() else ""
+        parts = line.split()
+        first = parts[0] if parts else ""
 
         if "/" in first:
-            local_subnets.append(first)
+            local_networks.append(first)
 
-    log(f"Found the following local subnets: {' '.join(local_subnets)}.")
+    log(f"Found the following local subnets: {' '.join(local_networks)}.")
 
     # Check if the target is in any of the local subnets
     ipcalc_result = subprocess.run(
@@ -63,6 +68,10 @@ def check_subnet_compatibility(settings: Settings) -> None:
         check=False,
     )
 
+    if ipcalc_result.returncode != 0:
+        error("Failed to calculate subnet details with ipcalc.")
+        raise SystemExit(1)
+
     subnet = ""
 
     for line in ipcalc_result.stdout.splitlines():
@@ -71,13 +80,13 @@ def check_subnet_compatibility(settings: Settings) -> None:
             subnet = fields[1] if fields else ""
             break
 
-    if subnet in local_subnets:
+    if subnet in local_networks:
         success("You are in the same subnet as the provided target, good job!")
         settings.subnet = True
 
         return
 
-    log(f"The target is in {subnet} and you're in {' '.join(local_subnets)}.")
+    log(f"The target is in {subnet} and you're in {' '.join(local_networks)}.")
     error("Please make sure you are in the same subnet as the target.")
 
     raise SystemExit(1)
@@ -86,20 +95,20 @@ def check_subnet_compatibility(settings: Settings) -> None:
 def check_host_reachability(settings: Settings) -> None:
     log("The target is a single host, checking if it's reachable.")
 
-    args = ["nmap", settings.target, "-sn", "--host-timeout", settings.pingout]
+    command = ["nmap", settings.target, "-sn", "--host-timeout", f"{settings.pingout}s"]
 
-    log(f"Running nmap with the following command:\n\n {' '.join(args)}\n")
+    log(f"Running nmap with the following command:\n\n {' '.join(command)}\n")
 
-    ping_result = subprocess.run(args, capture_output=True, text=True, check=False)
+    ping_result = subprocess.run(command, capture_output=True, text=True, check=False)
 
     log(f"This here is the response:\n\n{ping_result.stdout}")
 
     if "Host is up" in ping_result.stdout:
         log(f"The target {settings.target} is reachable, good job!")
         return
-    else:
-        log(f"The target {settings.target} is not reachable.")
-        log(f"The nmap scan result was {ping_result.returncode}.")
+
+    log(f"The target {settings.target} is not reachable.")
+    log(f"The nmap scan result was {ping_result.returncode}.")
 
     error(f"The target {settings.target} is not reachable.")
     raise SystemExit(1)
