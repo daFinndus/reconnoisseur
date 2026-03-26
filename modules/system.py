@@ -30,7 +30,14 @@ def check_pkg_manager(settings: Settings) -> None:
 # Ensure required tools exist and offer interactive installation when missing.
 # Installs with the detected package manager and fails fast if installation did not succeed.
 def check_pkgs(settings: Settings) -> None:
-    pkgs = ["nmap", "ffuf", "ipcalc", "python-requests", "python-urllib3"]
+    pkgs = [
+        "nmap",
+        "ffuf",
+        "ipcalc",
+        "python-requests",
+        "python-urllib3",
+        "python-rich",
+    ]
 
     step("Checking for required packages...")
 

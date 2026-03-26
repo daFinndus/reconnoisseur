@@ -187,9 +187,8 @@ class Nmap:
         # Parse service scan output to enrich port -> service mapping.
         self.extract_ports(host, f"{output_dir}.gnmap")
 
-        print()
-
         if self.settings.save:
+            print()
             success(f"Saved service detection results to .nmap, .gnmap and .xml.")
 
         return True
@@ -209,7 +208,8 @@ class Nmap:
             cmd.append("-v")
 
         # Print newline so the nmap scan is presented clearly
-        print()
+        if self.settings.verbose:
+            print()
 
         log(f"Running nmap with the following command:\n\n{' '.join(cmd)}\n")
 

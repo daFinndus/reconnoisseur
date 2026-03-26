@@ -4,7 +4,7 @@ import re
 import subprocess
 
 from modules.config import Settings
-from modules.helpers import contains_control_chars, error, log, step, success
+from modules.helpers import contains_control_chars, error, info, log, step, success
 
 
 # Validate target syntax and then verify reachability.
@@ -90,19 +90,9 @@ def check_host_reachability(settings: Settings) -> None:
 
     log(f"Running nmap with the following command:\n\n {' '.join(args)}\n")
 
-    ping_result = (
-        subprocess.run(args, capture_output=True, text=True, check=False)
-        if settings.verbose
-        else subprocess.run(
-            args,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            check=False,
-        )
-    )
+    ping_result = subprocess.run(args, capture_output=True, text=True, check=False)
 
-    log(f"This here is the response:\n\n{ping_result.stdout}\n")
+    log(f"This here is the response:\n\n{ping_result.stdout}")
 
     if "Host is up" in ping_result.stdout:
         log(f"The target {settings.target} is reachable, good job!")
